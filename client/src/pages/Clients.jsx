@@ -1,5 +1,8 @@
 import React, { useState, useEffect } from 'react';
-import { MoreVertical, Mail, Phone, Plus, X } from 'lucide-react';
+import { MoreVertical, Mail, Phone, Plus, X, Trash2 } from 'lucide-react';
+import { fetchAuth } from '../utils/fetchAuth';
+import toast from 'react-hot-toast';
+import { confirmDelete } from '../utils/toastConfirm';
 
 const initialClients = [];
 
@@ -8,38 +11,80 @@ const colors = ["bg-[#4DE3B1]", "bg-[#FEF08A]", "bg-[#E0F2FE]", "bg-[#F43F5E]", 
 export default function Clients() {
   const [clients, setClients] = useState(initialClients);
   const [isModalOpen, setIsModalOpen] = useState(false);
-  const [newClient, setNewClient] = useState({ name: '', company: '', email: '', phone: '', status: 'Lead' });
+  const [isEditing, setIsEditing] = useState(false);
+  const [formData, setFormData] = useState({ name: '', company: '', email: '', phone: '', status: 'Lead' });
+  const [editId, setEditId] = useState(null);
 
   useEffect(() => {
-    fetch('/api/clients')
+    fetchAuth('/api/clients')
       .then(res => res.json())
       .then(data => setClients(data))
       .catch(err => console.error(err));
   }, []);
 
-  const handleAddClient = async (e) => {
+  const openAddModal = () => {
+    setIsEditing(false);
+    setEditId(null);
+    setFormData({ name: '', company: '', email: '', phone: '', status: 'Lead' });
+    setIsModalOpen(true);
+  };
+
+  const openEditModal = (client) => {
+    setIsEditing(true);
+    setEditId(client._id || client.id);
+    setFormData({ 
+      name: client.name, 
+      company: client.company, 
+      email: client.email, 
+      phone: client.phone, 
+      status: client.status 
+    });
+    setIsModalOpen(true);
+  };
+
+  const handleSubmit = async (e) => {
     e.preventDefault();
-    if (!newClient.name) return;
-    
-    const randomBg = colors[Math.floor(Math.random() * colors.length)];
-    const clientData = {
-      ...newClient,
-      bg: randomBg
-    };
+    if (!formData.name) return;
     
     try {
-      const res = await fetch('/api/clients', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(clientData)
-      });
-      const savedClient = await res.json();
-      setClients([savedClient, ...clients]);
+      if (isEditing) {
+        const res = await fetchAuth(`/api/clients/${editId}`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(formData)
+        });
+        const updatedClient = await res.json();
+        setClients(clients.map(c => (c._id || c.id) === editId ? updatedClient : c));
+        toast.success('Client updated successfully!');
+      } else {
+        const randomBg = colors[Math.floor(Math.random() * colors.length)];
+        const res = await fetchAuth('/api/clients', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ ...formData, bg: randomBg })
+        });
+        const savedClient = await res.json();
+        setClients([savedClient, ...clients]);
+        toast.success('Client added successfully!');
+      }
       setIsModalOpen(false);
-      setNewClient({ name: '', company: '', email: '', phone: '', status: 'Lead' });
     } catch (err) {
       console.error(err);
+      toast.error(`Failed to ${isEditing ? 'update' : 'add'} client`);
     }
+  };
+
+  const handleDeleteClient = (id) => {
+    confirmDelete('Are you sure you want to delete this client?', async () => {
+      try {
+        await fetchAuth(`/api/clients/${id}`, { method: 'DELETE' });
+        setClients(clients.filter(c => (c._id || c.id) !== id));
+        toast.success('Client deleted!');
+      } catch (err) {
+        console.error(err);
+        toast.error('Failed to delete client');
+      }
+    });
   };
 
   return (
@@ -50,7 +95,7 @@ export default function Clients() {
           <p className="text-sm font-bold text-slate-600 mt-1">Manage your client relationships and contact details.</p>
         </div>
         <button 
-          onClick={() => setIsModalOpen(true)}
+          onClick={openAddModal}
           className="flex items-center gap-2 bg-[#F43F5E] text-white px-6 py-2.5 rounded-xl font-bold border-2 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] hover:shadow-none hover:translate-y-1 transition-all"
         >
           <Plus className="w-5 h-5 border-2 border-transparent bg-white text-black rounded-full p-0.5" /> 
@@ -100,9 +145,21 @@ export default function Clients() {
                     </span>
                   </td>
                   <td className="py-4 px-6 text-right">
-                    <button className="p-2 text-black hover:bg-[#FEF08A] border-2 border-transparent hover:border-black rounded-xl transition-all hover:shadow-[2px_2px_0px_0px_rgba(0,0,0,1)]">
-                      <MoreVertical className="w-6 h-6" />
-                    </button>
+                    <div className="flex justify-end gap-2">
+                      <button 
+                        onClick={() => openEditModal(client)}
+                        className="px-3 py-1 bg-[#FEF08A] hover:bg-yellow-300 text-black font-bold border-2 border-black rounded-xl transition-all shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] hover:shadow-none hover:translate-y-0.5"
+                      >
+                        Edit
+                      </button>
+                      <button 
+                        onClick={() => handleDeleteClient(client._id || client.id)}
+                        className="p-2 text-white bg-[#F43F5E] hover:bg-[#E11D48] border-2 border-black rounded-xl transition-all shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] hover:shadow-none hover:translate-y-0.5"
+                        title="Delete Client"
+                      >
+                        <Trash2 className="w-5 h-5" />
+                      </button>
+                    </div>
                   </td>
                 </tr>
               ))}
@@ -115,8 +172,8 @@ export default function Clients() {
       {isModalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
           <div className="bg-white rounded-2xl border-4 border-black shadow-[8px_8px_0px_0px_rgba(0,0,0,1)] w-full max-w-md overflow-hidden animate-in fade-in zoom-in duration-200">
-            <div className="bg-[#4DE3B1] border-b-4 border-black p-4 flex items-center justify-between">
-              <h2 className="text-xl font-black text-black uppercase">Add New Client</h2>
+            <div className={`${isEditing ? 'bg-[#FEF08A]' : 'bg-[#4DE3B1]'} border-b-4 border-black p-4 flex items-center justify-between`}>
+              <h2 className="text-xl font-black text-black uppercase">{isEditing ? 'Edit Client' : 'Add New Client'}</h2>
               <button 
                 onClick={() => setIsModalOpen(false)}
                 className="p-1 border-2 border-black rounded-lg bg-white hover:bg-black hover:text-white transition-colors"
@@ -125,14 +182,14 @@ export default function Clients() {
               </button>
             </div>
             
-            <form onSubmit={handleAddClient} className="p-6 space-y-4">
+            <form onSubmit={handleSubmit} className="p-6 space-y-4">
               <div>
                 <label className="block text-sm font-bold text-black mb-1">Full Name</label>
                 <input 
                   type="text" 
                   required
-                  value={newClient.name}
-                  onChange={e => setNewClient({...newClient, name: e.target.value})}
+                  value={formData.name}
+                  onChange={e => setFormData({...formData, name: e.target.value})}
                   className="w-full bg-white border-2 border-black rounded-xl py-2 px-3 text-black font-bold focus:outline-none focus:ring-0 focus:border-black shadow-[2px_2px_0px_0px_rgba(0,0,0,1)]"
                   placeholder="Jane Doe"
                 />
@@ -141,8 +198,8 @@ export default function Clients() {
                 <label className="block text-sm font-bold text-black mb-1">Company</label>
                 <input 
                   type="text" 
-                  value={newClient.company}
-                  onChange={e => setNewClient({...newClient, company: e.target.value})}
+                  value={formData.company}
+                  onChange={e => setFormData({...formData, company: e.target.value})}
                   className="w-full bg-white border-2 border-black rounded-xl py-2 px-3 text-black font-bold focus:outline-none focus:ring-0 focus:border-black shadow-[2px_2px_0px_0px_rgba(0,0,0,1)]"
                   placeholder="Acme Corp"
                 />
@@ -151,8 +208,8 @@ export default function Clients() {
                 <label className="block text-sm font-bold text-black mb-1">Email</label>
                 <input 
                   type="email" 
-                  value={newClient.email}
-                  onChange={e => setNewClient({...newClient, email: e.target.value})}
+                  value={formData.email}
+                  onChange={e => setFormData({...formData, email: e.target.value})}
                   className="w-full bg-white border-2 border-black rounded-xl py-2 px-3 text-black font-bold focus:outline-none focus:ring-0 focus:border-black shadow-[2px_2px_0px_0px_rgba(0,0,0,1)]"
                   placeholder="jane@example.com"
                 />
@@ -161,8 +218,8 @@ export default function Clients() {
                 <label className="block text-sm font-bold text-black mb-1">Phone</label>
                 <input 
                   type="text" 
-                  value={newClient.phone}
-                  onChange={e => setNewClient({...newClient, phone: e.target.value})}
+                  value={formData.phone}
+                  onChange={e => setFormData({...formData, phone: e.target.value})}
                   className="w-full bg-white border-2 border-black rounded-xl py-2 px-3 text-black font-bold focus:outline-none focus:ring-0 focus:border-black shadow-[2px_2px_0px_0px_rgba(0,0,0,1)]"
                   placeholder="+1 (555) 000-0000"
                 />
@@ -170,8 +227,8 @@ export default function Clients() {
               <div>
                 <label className="block text-sm font-bold text-black mb-1">Status</label>
                 <select 
-                  value={newClient.status}
-                  onChange={e => setNewClient({...newClient, status: e.target.value})}
+                  value={formData.status}
+                  onChange={e => setFormData({...formData, status: e.target.value})}
                   className="w-full bg-white border-2 border-black rounded-xl py-2 px-3 text-black font-bold focus:outline-none focus:ring-0 focus:border-black shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] appearance-none"
                 >
                   <option value="Active">Active</option>
@@ -191,7 +248,7 @@ export default function Clients() {
                   type="submit"
                   className="bg-[#8666F8] text-white px-6 py-2 rounded-xl font-bold border-2 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] hover:shadow-none hover:translate-y-1 transition-all"
                 >
-                  Save Client
+                  {isEditing ? 'Save Changes' : 'Save Client'}
                 </button>
               </div>
             </form>

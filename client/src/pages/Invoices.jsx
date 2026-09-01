@@ -1,34 +1,157 @@
 import React, { useState, useEffect } from 'react';
-import { Download, FileText, Plus, X } from 'lucide-react';
+import { Download, FileText, Plus, X, Trash2 } from 'lucide-react';
+import { fetchAuth } from '../utils/fetchAuth';
+import toast from 'react-hot-toast';
+import { confirmDelete } from '../utils/toastConfirm';
+import { jsPDF } from 'jspdf';
+import html2canvas from 'html2canvas';
 
 export default function Invoices() {
   const [invoices, setInvoices] = useState([]);
   const [isModalOpen, setIsModalOpen] = useState(false);
-  const [newInvoice, setNewInvoice] = useState({ invoiceId: '', client: '', amount: '', date: '', status: 'Pending' });
+  const [isEditing, setIsEditing] = useState(false);
+  const [editId, setEditId] = useState(null);
+  const [formData, setFormData] = useState({ invoiceId: '', client: '', amount: '', date: '', status: 'Pending' });
+
+  const [clients, setClients] = useState([]);
 
   useEffect(() => {
-    fetch('/api/invoices')
+    fetchAuth('/api/invoices')
       .then(res => res.json())
       .then(data => setInvoices(data))
       .catch(err => console.error(err));
+      
+    fetchAuth('/api/clients')
+      .then(res => res.json())
+      .then(data => setClients(data))
+      .catch(err => console.error(err));
   }, []);
 
-  const handleAddInvoice = async (e) => {
+  const openAddModal = () => {
+    setIsEditing(false);
+    setEditId(null);
+    setFormData({ invoiceId: '', client: '', amount: '', date: '', status: 'Pending' });
+    setIsModalOpen(true);
+  };
+
+  const openEditModal = (inv) => {
+    setIsEditing(true);
+    setEditId(inv._id || inv.id);
+    setFormData({
+      invoiceId: inv.invoiceId,
+      client: inv.client?._id || inv.client,
+      amount: inv.amount,
+      date: inv.date,
+      status: inv.status
+    });
+    setIsModalOpen(true);
+  };
+
+  const handleSubmit = async (e) => {
     e.preventDefault();
-    if (!newInvoice.invoiceId || !newInvoice.client) return;
+    if (!formData.invoiceId || !formData.client) return;
 
     try {
-      const res = await fetch('/api/invoices', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(newInvoice)
-      });
-      const savedInvoice = await res.json();
-      setInvoices([savedInvoice, ...invoices]);
+      if (isEditing) {
+        const res = await fetchAuth(`/api/invoices/${editId}`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(formData)
+        });
+        const updatedInvoice = await res.json();
+        setInvoices(invoices.map(i => (i._id || i.id) === editId ? updatedInvoice : i));
+        toast.success('Invoice updated successfully!');
+      } else {
+        const res = await fetchAuth('/api/invoices', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(formData)
+        });
+        const savedInvoice = await res.json();
+        setInvoices([savedInvoice, ...invoices]);
+        toast.success('Invoice created successfully!');
+      }
       setIsModalOpen(false);
-      setNewInvoice({ invoiceId: '', client: '', amount: '', date: '', status: 'Pending' });
     } catch (err) {
       console.error(err);
+      toast.error(`Failed to ${isEditing ? 'update' : 'create'} invoice`);
+    }
+  };
+
+  const handleDeleteInvoice = (id) => {
+    confirmDelete('Are you sure you want to delete this invoice?', async () => {
+      try {
+        await fetchAuth(`/api/invoices/${id}`, { method: 'DELETE' });
+        setInvoices(invoices.filter(i => (i._id || i.id) !== id));
+        toast.success('Invoice deleted!');
+      } catch (err) {
+        console.error(err);
+        toast.error('Failed to delete invoice');
+      }
+    });
+  };
+
+  const handleExportPDF = async (inv) => {
+    const toastId = toast.loading('Generating PDF...');
+    const invoiceElement = document.createElement('div');
+    invoiceElement.innerHTML = `
+      <div style="padding: 40px; font-family: sans-serif; width: 600px; background: white; color: black; border: 4px solid black;">
+        <h1 style="font-size: 32px; font-weight: 900; text-transform: uppercase; border-bottom: 4px solid black; padding-bottom: 20px; margin-bottom: 20px;">INVOICE</h1>
+        <div style="display: flex; justify-content: space-between; margin-bottom: 40px;">
+          <div>
+            <p style="font-weight: 700; font-size: 14px; margin: 0;">INVOICE ID</p>
+            <p style="font-weight: 900; font-size: 20px; margin: 0;">${inv.invoiceId}</p>
+          </div>
+          <div style="text-align: right;">
+            <p style="font-weight: 700; font-size: 14px; margin: 0;">DATE ISSUED</p>
+            <p style="font-weight: 900; font-size: 20px; margin: 0;">${inv.date}</p>
+          </div>
+        </div>
+        <div style="margin-bottom: 40px; padding: 20px; background: #FEF08A; border: 4px solid black; border-radius: 12px; box-shadow: 6px 6px 0px 0px rgba(0,0,0,1);">
+          <p style="font-weight: 700; font-size: 14px; margin: 0; margin-bottom: 8px;">BILLED TO</p>
+          <p style="font-weight: 900; font-size: 24px; margin: 0;">${inv.client?.name || inv.client}</p>
+        </div>
+        <table style="width: 100%; border-collapse: collapse; margin-bottom: 40px;">
+          <thead>
+            <tr style="border-bottom: 4px solid black; background: #E0F2FE;">
+              <th style="text-align: left; padding: 12px; font-weight: 900;">Description</th>
+              <th style="text-align: right; padding: 12px; font-weight: 900;">Amount</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td style="padding: 12px; font-weight: 700; border-bottom: 2px solid black;">Services Rendered</td>
+              <td style="text-align: right; padding: 12px; font-weight: 900; border-bottom: 2px solid black;">${inv.amount}</td>
+            </tr>
+          </tbody>
+        </table>
+        <div style="display: flex; justify-content: flex-end;">
+          <div style="width: 250px; background: #4DE3B1; padding: 20px; border: 4px solid black; border-radius: 12px; box-shadow: 6px 6px 0px 0px rgba(0,0,0,1);">
+            <p style="font-weight: 700; font-size: 14px; margin: 0; margin-bottom: 8px;">TOTAL DUE</p>
+            <p style="font-weight: 900; font-size: 32px; margin: 0;">${inv.amount}</p>
+          </div>
+        </div>
+      </div>
+    `;
+    invoiceElement.style.position = 'absolute';
+    invoiceElement.style.left = '-9999px';
+    document.body.appendChild(invoiceElement);
+
+    try {
+      const canvas = await html2canvas(invoiceElement, { scale: 2 });
+      const imgData = canvas.toDataURL('image/png');
+      const pdf = new jsPDF('p', 'mm', 'a4');
+      const pdfWidth = pdf.internal.pageSize.getWidth();
+      const pdfHeight = (canvas.height * pdfWidth) / canvas.width;
+      
+      pdf.addImage(imgData, 'PNG', 10, 10, pdfWidth - 20, pdfHeight - (20 * (pdfHeight/pdfWidth)));
+      pdf.save(`Invoice_${inv.invoiceId}.pdf`);
+      toast.success('PDF exported successfully!', { id: toastId });
+    } catch (err) {
+      console.error(err);
+      toast.error('Failed to export PDF', { id: toastId });
+    } finally {
+      document.body.removeChild(invoiceElement);
     }
   };
 
@@ -40,7 +163,7 @@ export default function Invoices() {
           <p className="text-sm font-bold text-slate-600 mt-1">Manage billing and track your payments.</p>
         </div>
         <button 
-          onClick={() => setIsModalOpen(true)}
+          onClick={openAddModal}
           className="flex items-center gap-2 bg-[#F59E0B] text-black px-6 py-2.5 rounded-xl font-bold border-2 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] hover:shadow-none hover:translate-y-1 transition-all uppercase tracking-wide"
         >
           <Plus className="w-5 h-5 border-2 border-transparent bg-white text-black rounded-full p-0.5" /> Create Invoice
@@ -66,7 +189,7 @@ export default function Invoices() {
                   <td className="py-4 px-6 border-r-2 border-black">
                     <span className="text-base font-black text-black bg-[#FEF08A] px-2 py-1 rounded-md border-2 border-black">{inv.invoiceId}</span>
                   </td>
-                  <td className="py-4 px-6 border-r-2 border-black text-base font-bold text-slate-700">{inv.client}</td>
+                  <td className="py-4 px-6 border-r-2 border-black text-base font-bold text-slate-700">{inv.client?.name || inv.client || 'Unknown Client'}</td>
                   <td className="py-4 px-6 border-r-2 border-black text-base font-black text-black">{inv.amount}</td>
                   <td className="py-4 px-6 border-r-2 border-black text-sm font-bold text-slate-600">{inv.date}</td>
                   <td className="py-4 px-6 border-r-2 border-black">
@@ -79,10 +202,27 @@ export default function Invoices() {
                   </td>
                   <td className="py-4 px-6 text-right">
                     <div className="flex items-center justify-end gap-3">
+                      <button 
+                        onClick={() => openEditModal(inv)}
+                        className="p-2 text-black hover:bg-[#FEF08A] border-2 border-transparent hover:border-black rounded-xl transition-all hover:shadow-[2px_2px_0px_0px_rgba(0,0,0,1)]"
+                      >
+                        Edit
+                      </button>
+                      <button 
+                        onClick={() => handleDeleteInvoice(inv._id || inv.id)}
+                        className="p-2 text-white bg-[#F43F5E] hover:bg-[#E11D48] border-2 border-black rounded-xl transition-all hover:shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] hover:-translate-y-0.5"
+                        title="Delete Invoice"
+                      >
+                        <Trash2 className="w-5 h-5" />
+                      </button>
                       <button className="p-2 text-black hover:bg-[#E0F2FE] border-2 border-transparent hover:border-black rounded-xl transition-all hover:shadow-[2px_2px_0px_0px_rgba(0,0,0,1)]">
                         <FileText className="w-5 h-5" />
                       </button>
-                      <button className="p-2 text-black hover:bg-[#E9D5FF] border-2 border-transparent hover:border-black rounded-xl transition-all hover:shadow-[2px_2px_0px_0px_rgba(0,0,0,1)]">
+                      <button 
+                        onClick={() => handleExportPDF(inv)}
+                        className="p-2 text-black hover:bg-[#E9D5FF] border-2 border-transparent hover:border-black rounded-xl transition-all hover:shadow-[2px_2px_0px_0px_rgba(0,0,0,1)]"
+                        title="Export PDF"
+                      >
                         <Download className="w-5 h-5" />
                       </button>
                     </div>
@@ -108,8 +248,8 @@ export default function Invoices() {
       {isModalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
           <div className="bg-white rounded-2xl border-4 border-black shadow-[8px_8px_0px_0px_rgba(0,0,0,1)] w-full max-w-md overflow-hidden animate-in fade-in zoom-in duration-200">
-            <div className="bg-[#4DE3B1] border-b-4 border-black p-4 flex items-center justify-between">
-              <h2 className="text-xl font-black text-black uppercase">Create Invoice</h2>
+            <div className={`${isEditing ? 'bg-[#FEF08A]' : 'bg-[#4DE3B1]'} border-b-4 border-black p-4 flex items-center justify-between`}>
+              <h2 className="text-xl font-black text-black uppercase">{isEditing ? 'Edit Invoice' : 'Create Invoice'}</h2>
               <button 
                 onClick={() => setIsModalOpen(false)}
                 className="p-1 border-2 border-black rounded-lg bg-white hover:bg-black hover:text-white transition-colors"
@@ -118,15 +258,15 @@ export default function Invoices() {
               </button>
             </div>
             
-            <form onSubmit={handleAddInvoice} className="p-6 space-y-4">
+            <form onSubmit={handleSubmit} className="p-6 space-y-4">
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <label className="block text-sm font-bold text-black mb-1">Invoice ID</label>
                   <input 
                     type="text" 
                     required
-                    value={newInvoice.invoiceId}
-                    onChange={e => setNewInvoice({...newInvoice, invoiceId: e.target.value})}
+                    value={formData.invoiceId}
+                    onChange={e => setFormData({...formData, invoiceId: e.target.value})}
                     className="w-full bg-white border-2 border-black rounded-xl py-2 px-3 text-black font-bold focus:outline-none focus:ring-0 focus:border-black shadow-[2px_2px_0px_0px_rgba(0,0,0,1)]"
                     placeholder="INV-001"
                   />
@@ -136,8 +276,8 @@ export default function Invoices() {
                   <input 
                     type="text" 
                     required
-                    value={newInvoice.amount}
-                    onChange={e => setNewInvoice({...newInvoice, amount: e.target.value})}
+                    value={formData.amount}
+                    onChange={e => setFormData({...formData, amount: e.target.value})}
                     className="w-full bg-white border-2 border-black rounded-xl py-2 px-3 text-black font-bold focus:outline-none focus:ring-0 focus:border-black shadow-[2px_2px_0px_0px_rgba(0,0,0,1)]"
                     placeholder="$1,000.00"
                   />
@@ -145,14 +285,17 @@ export default function Invoices() {
               </div>
               <div>
                 <label className="block text-sm font-bold text-black mb-1">Client Name</label>
-                <input 
-                  type="text" 
+                <select 
                   required
-                  value={newInvoice.client}
-                  onChange={e => setNewInvoice({...newInvoice, client: e.target.value})}
-                  className="w-full bg-white border-2 border-black rounded-xl py-2 px-3 text-black font-bold focus:outline-none focus:ring-0 focus:border-black shadow-[2px_2px_0px_0px_rgba(0,0,0,1)]"
-                  placeholder="Acme Corp"
-                />
+                  value={formData.client}
+                  onChange={e => setFormData({...formData, client: e.target.value})}
+                  className="w-full bg-white border-2 border-black rounded-xl py-2 px-3 text-black font-bold focus:outline-none focus:ring-0 focus:border-black shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] appearance-none"
+                >
+                  <option value="" disabled>Select a client</option>
+                  {clients.map(c => (
+                    <option key={c._id || c.id} value={c._id || c.id}>{c.name}</option>
+                  ))}
+                </select>
               </div>
               <div className="grid grid-cols-2 gap-4">
                 <div>
@@ -160,8 +303,8 @@ export default function Invoices() {
                   <input 
                     type="text" 
                     required
-                    value={newInvoice.date}
-                    onChange={e => setNewInvoice({...newInvoice, date: e.target.value})}
+                    value={formData.date}
+                    onChange={e => setFormData({...formData, date: e.target.value})}
                     className="w-full bg-white border-2 border-black rounded-xl py-2 px-3 text-black font-bold focus:outline-none focus:ring-0 focus:border-black shadow-[2px_2px_0px_0px_rgba(0,0,0,1)]"
                     placeholder="Dec 31, 2026"
                   />
@@ -169,8 +312,8 @@ export default function Invoices() {
                 <div>
                   <label className="block text-sm font-bold text-black mb-1">Status</label>
                   <select 
-                    value={newInvoice.status}
-                    onChange={e => setNewInvoice({...newInvoice, status: e.target.value})}
+                    value={formData.status}
+                    onChange={e => setFormData({...formData, status: e.target.value})}
                     className="w-full bg-white border-2 border-black rounded-xl py-2 px-3 text-black font-bold focus:outline-none focus:ring-0 focus:border-black shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] appearance-none"
                   >
                     <option value="Pending">Pending</option>
@@ -192,7 +335,7 @@ export default function Invoices() {
                   type="submit"
                   className="bg-[#F59E0B] text-black px-6 py-2 rounded-xl font-bold border-2 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] hover:shadow-none hover:translate-y-1 transition-all uppercase tracking-wide"
                 >
-                  Create
+                  {isEditing ? 'Save Changes' : 'Create'}
                 </button>
               </div>
             </form>

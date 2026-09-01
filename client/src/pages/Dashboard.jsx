@@ -1,4 +1,6 @@
+import React, { useState, useEffect } from 'react';
 import { Users, Briefcase, DollarSign, TrendingUp, ArrowUpRight } from 'lucide-react';
+import { fetchAuth } from '../utils/fetchAuth';
 
 const StatCard = ({ title, value, change, icon: Icon, trend, bgColor, iconColor }) => (
   <div className={`p-6 rounded-2xl border-2 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] flex items-center justify-between ${bgColor} transition-transform hover:-translate-y-1 hover:shadow-[6px_6px_0px_0px_rgba(0,0,0,1)]`}>
@@ -19,6 +21,52 @@ const StatCard = ({ title, value, change, icon: Icon, trend, bgColor, iconColor 
 );
 
 export default function Dashboard() {
+  const [stats, setStats] = useState({ revenue: 0, activeProjects: 0, totalClients: 0, pendingInvoices: 0 });
+  const [projects, setProjects] = useState([]);
+  const [meetings, setMeetings] = useState([]);
+
+  useEffect(() => {
+    const loadDashboardData = async () => {
+      try {
+        const [clientsRes, projectsRes, invoicesRes, meetingsRes] = await Promise.all([
+          fetchAuth('/api/clients'),
+          fetchAuth('/api/projects'),
+          fetchAuth('/api/invoices'),
+          fetchAuth('/api/meetings')
+        ]);
+        
+        const clients = await clientsRes.json();
+        const projs = await projectsRes.json();
+        const invs = await invoicesRes.json();
+        const mtgs = await meetingsRes.json();
+
+        const parseAmount = (str) => {
+          if (!str) return 0;
+          const num = parseFloat(str.replace(/[^0-9.-]+/g, ""));
+          return isNaN(num) ? 0 : num;
+        };
+
+        const revenue = invs.filter(i => i.status === 'Paid').reduce((acc, i) => acc + parseAmount(i.amount), 0);
+        const pending = invs.filter(i => i.status === 'Pending' || i.status === 'Overdue').reduce((acc, i) => acc + parseAmount(i.amount), 0);
+        const activeProjs = projs.filter(p => p.status !== 'Completed').length;
+
+        setStats({
+          revenue,
+          activeProjects: activeProjs,
+          totalClients: clients.length,
+          pendingInvoices: pending
+        });
+
+        setProjects(projs.slice(0, 5)); // Top 5
+        setMeetings(mtgs.slice(0, 4)); // Top 4
+      } catch (err) {
+        console.error("Dashboard fetch error:", err);
+      }
+    };
+    
+    loadDashboardData();
+  }, []);
+
   return (
     <div className="space-y-8 relative z-10">
       <div className="flex items-center justify-between bg-white border-2 border-black p-6 rounded-2xl shadow-[4px_4px_0px_0px_rgba(0,0,0,1)]">
@@ -29,10 +77,10 @@ export default function Dashboard() {
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-        <StatCard title="Total Revenue" value="$0" change="0%" icon={DollarSign} trend="up" bgColor="bg-[#4DE3B1]" iconColor="bg-white" />
-        <StatCard title="Active Projects" value="0" change="0" icon={Briefcase} trend="up" bgColor="bg-[#FEF08A]" iconColor="bg-white" />
-        <StatCard title="Total Clients" value="0" change="0" icon={Users} trend="up" bgColor="bg-[#F43F5E]" iconColor="bg-white" />
-        <StatCard title="Pending Invoices" value="$0" change="0%" icon={TrendingUp} trend="down" bgColor="bg-[#E0F2FE]" iconColor="bg-white" />
+        <StatCard title="Total Revenue" value={`$${stats.revenue.toLocaleString()}`} change="0%" icon={DollarSign} trend="up" bgColor="bg-[#4DE3B1]" iconColor="bg-white" />
+        <StatCard title="Active Projects" value={stats.activeProjects} change="0" icon={Briefcase} trend="up" bgColor="bg-[#FEF08A]" iconColor="bg-white" />
+        <StatCard title="Total Clients" value={stats.totalClients} change="0" icon={Users} trend="up" bgColor="bg-[#F43F5E]" iconColor="bg-white" />
+        <StatCard title="Pending Invoices" value={`$${stats.pendingInvoices.toLocaleString()}`} change="0%" icon={TrendingUp} trend="down" bgColor="bg-[#E0F2FE]" iconColor="bg-white" />
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 mt-8">
@@ -55,18 +103,21 @@ export default function Dashboard() {
                 </tr>
               </thead>
               <tbody className="divide-y-2 divide-black">
-                {[].map((item, idx) => (
+                {projects.map((item, idx) => (
                   <tr key={idx} className="hover:bg-gray-50 transition-colors">
                     <td className="py-4 px-6 text-sm font-bold text-black border-r-2 border-black">{item.name}</td>
                     <td className="py-4 px-6 text-sm font-bold text-slate-600 border-r-2 border-black">{item.client}</td>
                     <td className="py-4 px-6 border-r-2 border-black">
-                      <span className={`inline-flex items-center px-3 py-1 rounded-lg text-xs font-bold border-2 border-black shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] text-black ${item.statusBg}`}>
+                      <span className={`inline-flex items-center px-3 py-1 rounded-lg text-xs font-bold border-2 border-black shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] text-black ${item.badgeColor || 'bg-[#FEF08A]'}`}>
                         {item.status}
                       </span>
                     </td>
-                    <td className="py-4 px-6 text-sm font-black text-black text-right">{item.progress}</td>
+                    <td className="py-4 px-6 text-sm font-black text-black text-right">{item.progress}%</td>
                   </tr>
                 ))}
+                {projects.length === 0 && (
+                  <tr><td colSpan="4" className="py-4 px-6 text-center text-sm font-bold text-slate-600">No active projects</td></tr>
+                )}
               </tbody>
             </table>
           </div>
@@ -78,17 +129,20 @@ export default function Dashboard() {
             <h2 className="text-xl font-black text-white uppercase tracking-wider">Upcoming Meetings</h2>
           </div>
           <div className="p-0 divide-y-2 divide-black">
-            {[].map((mtg, i) => (
+            {meetings.map((mtg, i) => (
               <div key={i} className="flex gap-4 items-center p-5 hover:bg-gray-50 transition-colors">
-                <div className={`w-12 h-12 rounded-xl border-2 border-black shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] shrink-0 flex items-center justify-center ${mtg.color}`}>
-                   <span className="font-black text-black text-sm">{mtg.time.split(' ')[0]}</span>
+                <div className={`w-12 h-12 rounded-xl border-2 border-black shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] shrink-0 flex items-center justify-center bg-[#E0F2FE]`}>
+                   <span className="font-black text-black text-xs text-center">{mtg.date.substring(0, 5)}</span>
                 </div>
                 <div>
                   <p className="text-base font-bold text-black">{mtg.title}</p>
-                  <p className="text-sm font-bold text-slate-600 mt-0.5">{mtg.time} • {mtg.client}</p>
+                  <p className="text-sm font-bold text-slate-600 mt-0.5">{mtg.date}</p>
                 </div>
               </div>
             ))}
+            {meetings.length === 0 && (
+              <div className="p-5 text-center text-sm font-bold text-slate-600">No upcoming meetings</div>
+            )}
           </div>
         </div>
       </div>

@@ -19,17 +19,17 @@ export default function LandingPage() {
         <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
           <div className="flex h-20 items-center justify-between">
             <div className="flex items-center gap-2">
-              <div className="h-8 w-8 bg-black rounded-lg flex items-center justify-center text-white">
-                <Box className="h-5 w-5" />
-              </div>
-              <span className="text-2xl font-black tracking-tight uppercase">FCMS</span>
+              <div className="w-8 h-8 rounded-lg bg-black flex items-center justify-center">
+              <span className="text-white font-black text-lg leading-none">O</span>
+            </div>
+            <span className="text-2xl font-black tracking-tight uppercase">Orbit</span>
             </div>
             <div className="flex items-center gap-6">
               <Link to="/login" className="text-sm font-bold text-black hover:underline underline-offset-4 decoration-2 transition-all">
                 Login
               </Link>
               <Link 
-                to="/dashboard" 
+                to="/signup" 
                 className="inline-flex h-11 items-center justify-center rounded-xl bg-black px-6 py-2 text-sm font-bold text-white transition-transform hover:-translate-y-1 shadow-[0_4px_0_0_rgba(0,0,0,0.3)] hover:shadow-[0_2px_0_0_rgba(0,0,0,0.3)] focus:outline-none border-2 border-transparent"
               >
                 Sign up for free
@@ -168,12 +168,12 @@ export default function LandingPage() {
             </h1>
 
             <p className="text-lg md:text-xl text-slate-600 mb-10 max-w-3xl mx-auto font-medium leading-relaxed bg-white/50 backdrop-blur-sm px-6 py-3 rounded-2xl">
-              Freelance Client Management System (FCMS) centralizes your business into a clean dashboard. Stop relying on scattered spreadsheets and multiple apps. Focus on delivering quality work, not admin tasks.
+              Orbit centralizes your business into a clean dashboard. Stop relying on scattered spreadsheets and multiple apps. Focus on delivering quality work, not admin tasks.
             </p>
 
             <div className="flex items-center justify-center gap-4">
               <Link 
-                to="/dashboard" 
+                to="/signup" 
                 className="inline-flex h-14 items-center justify-center gap-2 rounded-xl bg-[#F43F5E] px-8 text-lg font-bold text-white transition-transform hover:-translate-y-1 shadow-[0_8px_0_0_#9F1239] hover:shadow-[0_4px_0_0_#9F1239] active:translate-y-2 active:shadow-none"
               >
                 Get Started Today
@@ -261,7 +261,7 @@ export default function LandingPage() {
                 Join the new wave of freelancers managing their clients, projects, and finances without the stress.
               </p>
               <Link 
-                to="/dashboard" 
+                to="/signup" 
                 className="inline-flex h-14 items-center justify-center rounded-xl bg-white px-8 text-lg font-bold text-black transition-transform hover:-translate-y-1 shadow-[0_6px_0_0_#000] hover:shadow-[0_3px_0_0_#000] active:translate-y-2 active:shadow-none border-2 border-black"
               >
                 Start for free
@@ -278,7 +278,7 @@ export default function LandingPage() {
             <div className="h-6 w-6 bg-black rounded-md flex items-center justify-center text-white">
               <Box className="h-4 w-4" />
             </div>
-            <span className="font-bold">FCMS &copy; {new Date().getFullYear()}</span>
+            <span className="font-bold">Orbit &copy; {new Date().getFullYear()}</span>
           </div>
           <div className="flex gap-8 font-bold text-slate-600">
             <a href="#" className="hover:text-black transition-colors hover:underline">Privacy Policy</a>

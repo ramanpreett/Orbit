@@ -1,5 +1,6 @@
-import { Link, useLocation } from 'react-router-dom';
-import { LayoutDashboard, Users, Briefcase, Calendar, FileText, Settings, Bell, Search, Menu } from 'lucide-react';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
+import { LayoutDashboard, Users, Briefcase, Calendar, FileText, Settings, Bell, Search, Menu, LogOut } from 'lucide-react';
+import { useAuth } from '../context/AuthContext';
 import { clsx } from 'clsx';
 import { twMerge } from 'tailwind-merge';
 
@@ -28,6 +29,14 @@ const SidebarItem = ({ icon: Icon, label, path }) => {
 };
 
 export const Layout = ({ children }) => {
+  const { user, logout } = useAuth();
+  const navigate = useNavigate();
+
+  const handleLogout = () => {
+    logout();
+    navigate('/');
+  };
+
   return (
     <div className="flex h-screen bg-[#FDFDFD] text-slate-900 font-sans selection:bg-purple-200 selection:text-slate-900 relative">
       
@@ -46,9 +55,9 @@ export const Layout = ({ children }) => {
           <div className="h-20 flex items-center px-6 border-b-4 border-black bg-[#FEF08A]">
             <div className="flex items-center gap-2">
               <div className="w-8 h-8 rounded-lg bg-black flex items-center justify-center">
-                <span className="text-white font-black text-lg leading-none">F</span>
+                <span className="text-white font-black text-lg leading-none">O</span>
               </div>
-              <span className="text-2xl font-black tracking-tight uppercase">FCMS</span>
+              <span className="text-2xl font-black tracking-tight uppercase">Orbit</span>
             </div>
           </div>
           
@@ -67,14 +76,19 @@ export const Layout = ({ children }) => {
         <div className="p-4 border-t-4 border-black bg-white">
           <SidebarItem icon={Settings} label="Settings" path="/settings" />
           
-          <div className="mt-4 px-4 py-3 flex items-center gap-3 rounded-xl border-2 border-black bg-[#E0F2FE] shadow-[4px_4px_0px_0px_rgba(0,0,0,1)]">
-            <div className="w-10 h-10 rounded-lg border-2 border-black bg-white flex items-center justify-center overflow-hidden shrink-0">
-               <img src="https://ui-avatars.com/api/?name=Raman+Preet&background=E0F2FE&color=000&bold=true" alt="Profile" />
+          <div className="mt-4 px-4 py-3 flex items-center justify-between rounded-xl border-2 border-black bg-[#E0F2FE] shadow-[4px_4px_0px_0px_rgba(0,0,0,1)]">
+            <div className="flex items-center gap-3 min-w-0">
+              <div className="w-10 h-10 rounded-lg border-2 border-black bg-white flex items-center justify-center overflow-hidden shrink-0">
+                 <img src={`https://ui-avatars.com/api/?name=${user?.name || 'User'}&background=E0F2FE&color=000&bold=true`} alt="Profile" />
+              </div>
+              <div className="flex-1 min-w-0">
+                <p className="text-sm font-bold text-black truncate">{user?.name || 'User'}</p>
+                <p className="text-xs font-bold text-slate-600 truncate">{user?.email || 'user@example.com'}</p>
+              </div>
             </div>
-            <div className="flex-1 min-w-0">
-              <p className="text-sm font-bold text-black truncate">Raman Preet</p>
-              <p className="text-xs font-bold text-slate-600 truncate">Pro Freelancer</p>
-            </div>
+            <button onClick={handleLogout} className="text-slate-500 hover:text-black transition-colors" title="Logout">
+              <LogOut className="w-5 h-5" />
+            </button>
           </div>
         </div>
       </aside>
