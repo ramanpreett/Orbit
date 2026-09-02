@@ -4,7 +4,7 @@ import { ArrowRight, Users, Briefcase, Calendar, Receipt, Box } from 'lucide-rea
 
 export default function LandingPage() {
   return (
-    <div className="min-h-screen bg-[#FDFDFD] text-slate-900 font-sans selection:bg-purple-200 selection:text-slate-900 overflow-x-hidden relative">
+    <div className="min-h-screen bg-[#FDFDFD] text-slate-900 font-sans selection:bg-purple-200 selection:text-slate-900 overflow-x-clip relative">
       {/* Universal Dotted Background */}
       <div 
         className="fixed inset-0 pointer-events-none z-0" 
@@ -92,7 +92,7 @@ export default function LandingPage() {
         </div>
 
         {/* Bottom Left: Projects (Kanban Board) */}
-        <div className="absolute bottom-24 left-[-1rem] md:bottom-36 md:left-12 lg:bottom-44 lg:left-24 rotate-[-6deg] hidden md:block transition-transform hover:rotate-0 duration-300 z-30">
+        <div className="absolute bottom-24 left-[-1rem] md:bottom-36 md:left-12 lg:bottom-44 lg:left-24 rotate-[6deg] hidden md:block transition-transform hover:rotate-0 duration-300 z-30">
           <div className="bg-[#DCFCE7] border-2 border-black rounded-3xl p-4 shadow-[6px_6px_0px_0px_rgba(0,0,0,1)] w-32 h-32 lg:w-40 lg:h-40 relative flex items-center justify-center">
              <svg viewBox="0 0 100 100" className="w-full h-full overflow-visible">
                {/* Board Background */}
@@ -187,63 +187,66 @@ export default function LandingPage() {
       {/* Core Features Section */}
       <section className="py-24 border-t-2 border-black z-10 relative mt-12 lg:mt-0">
         <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
-          <div className="text-center mb-20 bg-white/70 backdrop-blur-sm p-8 rounded-3xl border border-slate-200 shadow-sm max-w-3xl mx-auto">
-            <h2 className="text-4xl font-bold tracking-tight text-slate-900 mb-4">Everything you need. Nothing you don't.</h2>
-            <p className="text-slate-600 text-lg font-medium">
+          <div className="text-center mb-32 max-w-5xl mx-auto flex flex-col items-center">
+            <h2 className="text-5xl md:text-7xl font-black tracking-tight text-black mb-8 uppercase flex flex-col items-center gap-4">
+              <span className="inline-block bg-[#FF90E8] border-4 border-black px-6 py-2 shadow-[8px_8px_0px_0px_rgba(0,0,0,1)] -rotate-2">Everything you need.</span>
+              <span className="inline-block bg-[#FEF08A] border-4 border-black px-6 py-2 shadow-[8px_8px_0px_0px_rgba(0,0,0,1)] rotate-2">Nothing you don't.</span>
+            </h2>
+            <p className="text-black text-lg md:text-xl font-bold bg-white inline-block px-8 py-4 border-4 border-black shadow-[6px_6px_0px_0px_rgba(0,0,0,1)] -rotate-1 mt-4">
               A meticulously designed toolset for managing the full lifecycle of your freelance clients.
             </p>
           </div>
           
-          <div className="grid md:grid-cols-2 gap-8 lg:gap-12 max-w-5xl mx-auto">
+          <div className="flex flex-col gap-24 max-w-3xl mx-auto pb-48">
             {/* Feature 1: Clients */}
-            <div className="group rounded-3xl bg-white p-10 shadow-[6px_6px_0px_0px_rgba(0,0,0,1)] border-2 border-black hover:-translate-y-1 transition-all duration-300">
-              <div className="mb-6 inline-flex h-14 w-14 items-center justify-center rounded-2xl bg-[#E0F2FE] border-2 border-black shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] text-[#0284C7]">
-                <Users className="h-7 w-7" />
+            <div className="sticky top-32 group rounded-3xl bg-[#38BDF8] p-10 shadow-[8px_8px_0px_0px_rgba(0,0,0,1)] border-4 border-black rotate-[-2deg] transition-transform duration-300 hover:rotate-0 z-10">
+              <div className="mb-6 inline-flex h-16 w-16 items-center justify-center rounded-2xl bg-white border-4 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] text-black">
+                <Users className="h-8 w-8" />
               </div>
-              <h3 className="mb-4 text-2xl font-bold text-slate-900">Clients</h3>
-              <ul className="space-y-3 text-slate-600 font-medium">
-                <li className="flex items-start gap-2"><ArrowRight className="h-5 w-5 text-black shrink-0 mt-0.5"/> Store and organize all client info in one place.</li>
-                <li className="flex items-start gap-2"><ArrowRight className="h-5 w-5 text-black shrink-0 mt-0.5"/> Maintain a directory with contact details & project links.</li>
-                <li className="flex items-start gap-2"><ArrowRight className="h-5 w-5 text-black shrink-0 mt-0.5"/> Quickly search, filter, and access information.</li>
+              <h3 className="mb-4 text-3xl font-black text-black uppercase">Clients</h3>
+              <ul className="space-y-4 text-black text-lg font-bold bg-white/40 p-6 rounded-2xl border-4 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)]">
+                <li className="flex items-start gap-3"><ArrowRight className="h-6 w-6 text-black shrink-0 mt-0.5"/> Store and organize all client info in one place.</li>
+                <li className="flex items-start gap-3"><ArrowRight className="h-6 w-6 text-black shrink-0 mt-0.5"/> Maintain a directory with contact details & project links.</li>
+                <li className="flex items-start gap-3"><ArrowRight className="h-6 w-6 text-black shrink-0 mt-0.5"/> Quickly search, filter, and access information.</li>
               </ul>
             </div>
 
             {/* Feature 2: Projects */}
-            <div className="group rounded-3xl bg-white p-10 shadow-[6px_6px_0px_0px_rgba(0,0,0,1)] border-2 border-black hover:-translate-y-1 transition-all duration-300">
-              <div className="mb-6 inline-flex h-14 w-14 items-center justify-center rounded-2xl bg-[#DCFCE7] border-2 border-black shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] text-[#16A34A]">
-                <Briefcase className="h-7 w-7" />
+            <div className="sticky top-40 group rounded-3xl bg-[#4ADE80] p-10 shadow-[8px_8px_0px_0px_rgba(0,0,0,1)] border-4 border-black rotate-[2deg] transition-transform duration-300 hover:rotate-0 z-20">
+              <div className="mb-6 inline-flex h-16 w-16 items-center justify-center rounded-2xl bg-white border-4 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] text-black">
+                <Briefcase className="h-8 w-8" />
               </div>
-              <h3 className="mb-4 text-2xl font-bold text-slate-900">Projects</h3>
-              <ul className="space-y-3 text-slate-600 font-medium">
-                <li className="flex items-start gap-2"><ArrowRight className="h-5 w-5 text-black shrink-0 mt-0.5"/> Create and manage multiple projects per client.</li>
-                <li className="flex items-start gap-2"><ArrowRight className="h-5 w-5 text-black shrink-0 mt-0.5"/> Track status: Planning, In Progress, Review, Completed.</li>
-                <li className="flex items-start gap-2"><ArrowRight className="h-5 w-5 text-black shrink-0 mt-0.5"/> Record descriptions, deadlines, and view progress visually.</li>
+              <h3 className="mb-4 text-3xl font-black text-black uppercase">Projects</h3>
+              <ul className="space-y-4 text-black text-lg font-bold bg-white/40 p-6 rounded-2xl border-4 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)]">
+                <li className="flex items-start gap-3"><ArrowRight className="h-6 w-6 text-black shrink-0 mt-0.5"/> Create and manage multiple projects per client.</li>
+                <li className="flex items-start gap-3"><ArrowRight className="h-6 w-6 text-black shrink-0 mt-0.5"/> Track status: Planning, In Progress, Review, Completed.</li>
+                <li className="flex items-start gap-3"><ArrowRight className="h-6 w-6 text-black shrink-0 mt-0.5"/> Record descriptions, deadlines, and view progress visually.</li>
               </ul>
             </div>
 
             {/* Feature 3: Meetings */}
-            <div className="group rounded-3xl bg-white p-10 shadow-[6px_6px_0px_0px_rgba(0,0,0,1)] border-2 border-black hover:-translate-y-1 transition-all duration-300">
-              <div className="mb-6 inline-flex h-14 w-14 items-center justify-center rounded-2xl bg-[#FEF3C7] border-2 border-black shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] text-[#D97706]">
-                <Calendar className="h-7 w-7" />
+            <div className="sticky top-48 group rounded-3xl bg-[#FBBF24] p-10 shadow-[8px_8px_0px_0px_rgba(0,0,0,1)] border-4 border-black rotate-[-2deg] transition-transform duration-300 hover:rotate-0 z-30">
+              <div className="mb-6 inline-flex h-16 w-16 items-center justify-center rounded-2xl bg-white border-4 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] text-black">
+                <Calendar className="h-8 w-8" />
               </div>
-              <h3 className="mb-4 text-2xl font-bold text-slate-900">Meetings</h3>
-              <ul className="space-y-3 text-slate-600 font-medium">
-                <li className="flex items-start gap-2"><ArrowRight className="h-5 w-5 text-black shrink-0 mt-0.5"/> Schedule meetings directly with clients.</li>
-                <li className="flex items-start gap-2"><ArrowRight className="h-5 w-5 text-black shrink-0 mt-0.5"/> Record dates, times, agendas, and important notes.</li>
-                <li className="flex items-start gap-2"><ArrowRight className="h-5 w-5 text-black shrink-0 mt-0.5"/> Keep interaction history and get upcoming reminders.</li>
+              <h3 className="mb-4 text-3xl font-black text-black uppercase">Meetings</h3>
+              <ul className="space-y-4 text-black text-lg font-bold bg-white/40 p-6 rounded-2xl border-4 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)]">
+                <li className="flex items-start gap-3"><ArrowRight className="h-6 w-6 text-black shrink-0 mt-0.5"/> Schedule meetings directly with clients.</li>
+                <li className="flex items-start gap-3"><ArrowRight className="h-6 w-6 text-black shrink-0 mt-0.5"/> Record dates, times, agendas, and important notes.</li>
+                <li className="flex items-start gap-3"><ArrowRight className="h-6 w-6 text-black shrink-0 mt-0.5"/> Keep interaction history and get upcoming reminders.</li>
               </ul>
             </div>
 
             {/* Feature 4: Invoices */}
-            <div className="group rounded-3xl bg-white p-10 shadow-[6px_6px_0px_0px_rgba(0,0,0,1)] border-2 border-black hover:-translate-y-1 transition-all duration-300">
-              <div className="mb-6 inline-flex h-14 w-14 items-center justify-center rounded-2xl bg-[#F3E8FF] border-2 border-black shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] text-[#9333EA]">
-                <Receipt className="h-7 w-7" />
+            <div className="sticky top-56 group rounded-3xl bg-[#C084FC] p-10 shadow-[8px_8px_0px_0px_rgba(0,0,0,1)] border-4 border-black rotate-[2deg] transition-transform duration-300 hover:rotate-0 z-40">
+              <div className="mb-6 inline-flex h-16 w-16 items-center justify-center rounded-2xl bg-white border-4 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] text-black">
+                <Receipt className="h-8 w-8" />
               </div>
-              <h3 className="mb-4 text-2xl font-bold text-slate-900">Invoices</h3>
-              <ul className="space-y-3 text-slate-600 font-medium">
-                <li className="flex items-start gap-2"><ArrowRight className="h-5 w-5 text-black shrink-0 mt-0.5"/> Create professional invoices in minutes.</li>
-                <li className="flex items-start gap-2"><ArrowRight className="h-5 w-5 text-black shrink-0 mt-0.5"/> Track status: Draft, Sent, Paid, Overdue.</li>
-                <li className="flex items-start gap-2"><ArrowRight className="h-5 w-5 text-black shrink-0 mt-0.5"/> Easily access payment history for financial tracking.</li>
+              <h3 className="mb-4 text-3xl font-black text-black uppercase">Invoices</h3>
+              <ul className="space-y-4 text-black text-lg font-bold bg-white/40 p-6 rounded-2xl border-4 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)]">
+                <li className="flex items-start gap-3"><ArrowRight className="h-6 w-6 text-black shrink-0 mt-0.5"/> Create professional invoices in minutes.</li>
+                <li className="flex items-start gap-3"><ArrowRight className="h-6 w-6 text-black shrink-0 mt-0.5"/> Track status: Draft, Sent, Paid, Overdue.</li>
+                <li className="flex items-start gap-3"><ArrowRight className="h-6 w-6 text-black shrink-0 mt-0.5"/> Easily access payment history for financial tracking.</li>
               </ul>
             </div>
           </div>
