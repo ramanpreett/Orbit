@@ -2,20 +2,14 @@ import React, { useState, useEffect } from 'react';
 import { Users, Briefcase, DollarSign, TrendingUp, ArrowUpRight } from 'lucide-react';
 import { fetchAuth } from '../utils/fetchAuth';
 
-const StatCard = ({ title, value, change, icon: Icon, trend, bgColor, iconColor }) => (
-  <div className={`p-6 rounded-2xl border-2 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] flex items-center justify-between ${bgColor} transition-transform hover:-translate-y-1 hover:shadow-[6px_6px_0px_0px_rgba(0,0,0,1)]`}>
+const StatCard = ({ title, value, icon: Icon, bgColor }) => (
+  <div className={`p-6 rounded-2xl border-4 border-black shadow-[8px_8px_0px_0px_rgba(0,0,0,1)] flex items-start justify-between ${bgColor} transition-transform hover:-translate-y-1 hover:shadow-[8px_8px_0px_0px_rgba(0,0,0,1)]`}>
     <div>
-      <p className="text-sm font-bold text-black mb-1 uppercase tracking-wider">{title}</p>
-      <h3 className="text-3xl font-black text-black">{value}</h3>
-      <div className="flex items-center gap-2 mt-2">
-        <span className={`text-sm font-bold px-2 py-0.5 rounded-md border-2 border-black bg-white ${trend === 'up' ? 'text-black' : 'text-red-600'}`}>
-          {change}
-        </span>
-        <span className="text-xs font-bold text-black/70">vs last month</span>
-      </div>
+      <p className="text-sm font-black text-black mb-2 uppercase tracking-widest">{title}</p>
+      <h3 className="text-4xl font-black text-black leading-none tracking-tight">{value}</h3>
     </div>
-    <div className={`p-4 rounded-xl border-2 border-black shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] ${iconColor}`}>
-      <Icon className="w-8 h-8 text-black" />
+    <div className="opacity-80">
+      <Icon className="w-10 h-10 text-black stroke-[3]" />
     </div>
   </div>
 );
@@ -69,12 +63,6 @@ export default function Dashboard() {
 
   return (
     <div className="space-y-8 relative z-10">
-      <div className="flex items-center justify-between bg-white border-2 border-black p-6 rounded-2xl shadow-[4px_4px_0px_0px_rgba(0,0,0,1)]">
-        <div>
-          <h1 className="text-3xl font-black text-black uppercase tracking-tight">Dashboard Overview</h1>
-          <p className="text-sm font-bold text-slate-600 mt-1">Here's what's happening with your freelance business today.</p>
-        </div>
-      </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
         <StatCard title="Total Revenue" value={`$${stats.revenue.toLocaleString()}`} change="0%" icon={DollarSign} trend="up" bgColor="bg-[#4DE3B1]" iconColor="bg-white" />
