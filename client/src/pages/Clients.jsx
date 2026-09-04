@@ -1,8 +1,9 @@
 import React, { useState, useEffect } from 'react';
-import { MoreVertical, Mail, Phone, Plus, X, Trash2 } from 'lucide-react';
+import { MoreVertical, Mail, Phone, Plus, X, Trash2, Wand2, Users, UserCheck } from 'lucide-react';
 import { fetchAuth } from '../utils/fetchAuth';
 import toast from 'react-hot-toast';
 import { confirmDelete } from '../utils/toastConfirm';
+import Select from '../components/Select';
 
 const initialClients = [];
 
@@ -11,6 +12,8 @@ const colors = ["bg-[#4DE3B1]", "bg-[#FEF08A]", "bg-[#E0F2FE]", "bg-[#F43F5E]", 
 export default function Clients() {
   const [clients, setClients] = useState(initialClients);
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [isExtractModalOpen, setIsExtractModalOpen] = useState(false);
+  const [extractText, setExtractText] = useState('');
   const [isEditing, setIsEditing] = useState(false);
   const [formData, setFormData] = useState({ name: '', company: '', email: '', phone: '', status: 'Lead' });
   const [editId, setEditId] = useState(null);
@@ -27,6 +30,34 @@ export default function Clients() {
     setEditId(null);
     setFormData({ name: '', company: '', email: '', phone: '', status: 'Lead' });
     setIsModalOpen(true);
+  };
+
+  const handleExtract = (e) => {
+    e.preventDefault();
+    if (!extractText) return;
+    
+    const emailMatch = extractText.match(/[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/);
+    const phoneMatch = extractText.match(/(?:\+?\d{1,4}[\s-]?)?(?:\(?\d{1,5}\)?[\s-]?)?\d{2,4}[\s.-]?\d{2,4}[\s.-]?\d{2,6}/);
+    
+    // Heuristic for name: Look for two capitalized words, or just take the text before an email if simple
+    const nameMatch = extractText.match(/([A-Z][a-z]+\s[A-Z][a-z]+)/);
+    
+    // Heuristic for company: "at [Company]" or "from [Company]"
+    const companyMatch = extractText.match(/(?:at|from|ceo of|founder of)\s+([A-Z][a-zA-Z0-9]+(?:\s+[A-Z][a-zA-Z0-9]+)*)/i);
+
+    setFormData({
+      name: nameMatch ? nameMatch[1] : '',
+      company: companyMatch ? companyMatch[1] : '',
+      email: emailMatch ? emailMatch[0] : '',
+      phone: phoneMatch ? phoneMatch[0] : '',
+      status: 'Lead'
+    });
+    
+    setIsExtractModalOpen(false);
+    setExtractText('');
+    setIsEditing(false);
+    setIsModalOpen(true);
+    toast.success('Extracted details from text!');
   };
 
   const openEditModal = (client) => {
@@ -94,20 +125,55 @@ export default function Clients() {
           <h1 className="text-3xl font-black text-black uppercase tracking-tight">Clients</h1>
           <p className="text-sm font-bold text-slate-600 mt-1">Manage your client relationships and contact details.</p>
         </div>
-        <button 
-          onClick={openAddModal}
-          className="flex items-center gap-2 bg-[#F43F5E] text-white px-6 py-2.5 rounded-xl font-bold border-2 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] hover:shadow-none hover:translate-y-1 transition-all"
-        >
-          <Plus className="w-5 h-5 border-2 border-transparent bg-white text-black rounded-full p-0.5" /> 
-          Add Client
-        </button>
+        <div className="flex gap-3">
+          <button 
+            onClick={() => setIsExtractModalOpen(true)}
+            className="flex items-center gap-2 bg-[#E9D5FF] text-black px-6 py-2.5 rounded-xl font-bold border-2 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] hover:shadow-none hover:translate-y-1 transition-all"
+          >
+            <Wand2 className="w-5 h-5 text-black" /> 
+            Auto Extract
+          </button>
+          <button 
+            onClick={openAddModal}
+            className="flex items-center gap-2 bg-[#F43F5E] text-white px-6 py-2.5 rounded-xl font-bold border-2 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] hover:shadow-none hover:translate-y-1 transition-all"
+          >
+            <Plus className="w-5 h-5 border-2 border-transparent bg-white text-black rounded-full p-0.5" /> 
+            Add Client
+          </button>
+        </div>
       </div>
 
-      <div className="bg-white rounded-2xl border-2 border-black shadow-[6px_6px_0px_0px_rgba(0,0,0,1)] flex-1 overflow-hidden">
-        <div className="overflow-x-auto">
-          <table className="w-full text-left border-collapse">
-            <thead>
-              <tr className="bg-[#FEF08A] border-b-2 border-black">
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6 flex-shrink-0">
+        <div className="p-6 rounded-2xl border-4 border-black shadow-[8px_8px_0px_0px_rgba(0,0,0,1)] flex items-start justify-between bg-[#4DE3B1] transition-transform hover:-translate-y-1 hover:shadow-[8px_8px_0px_0px_rgba(0,0,0,1)]">
+          <div>
+            <p className="text-sm font-black text-black mb-2 uppercase tracking-widest">Active Clients</p>
+            <h3 className="text-4xl font-black text-black leading-none tracking-tight">
+              {clients.filter(c => c.status === 'Active').length}
+            </h3>
+          </div>
+          <div className="opacity-80">
+            <UserCheck className="w-10 h-10 text-black stroke-[3]" />
+          </div>
+        </div>
+
+        <div className="p-6 rounded-2xl border-4 border-black shadow-[8px_8px_0px_0px_rgba(0,0,0,1)] flex items-start justify-between bg-[#E9D5FF] transition-transform hover:-translate-y-1 hover:shadow-[8px_8px_0px_0px_rgba(0,0,0,1)]">
+          <div>
+            <p className="text-sm font-black text-black mb-2 uppercase tracking-widest">Lead Clients</p>
+            <h3 className="text-4xl font-black text-black leading-none tracking-tight">
+              {clients.filter(c => c.status === 'Lead').length}
+            </h3>
+          </div>
+          <div className="opacity-80">
+            <Users className="w-10 h-10 text-black stroke-[3]" />
+          </div>
+        </div>
+      </div>
+
+      <div className="bg-white rounded-2xl border-2 border-black shadow-[6px_6px_0px_0px_rgba(0,0,0,1)] flex-1 flex flex-col overflow-hidden min-h-0">
+        <div className="overflow-auto flex-1">
+          <table className="w-full text-left border-collapse relative">
+            <thead className="sticky top-0 z-10 outline outline-2 outline-black">
+              <tr className="bg-[#FEF08A]">
                 <th className="py-4 px-6 text-sm font-black text-black uppercase tracking-wider border-r-2 border-black">Client Name</th>
                 <th className="py-4 px-6 text-sm font-black text-black uppercase tracking-wider border-r-2 border-black">Contact Info</th>
                 <th className="py-4 px-6 text-sm font-black text-black uppercase tracking-wider border-r-2 border-black">Status</th>
@@ -168,11 +234,53 @@ export default function Clients() {
         </div>
       </div>
 
+      {/* Auto Extract Modal */}
+      {isExtractModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
+          <div className="bg-white rounded-2xl border-4 border-black shadow-[8px_8px_0px_0px_rgba(0,0,0,1)] w-full max-w-md animate-in fade-in zoom-in duration-200">
+            <div className="bg-[#E9D5FF] rounded-t-[12px] border-b-4 border-black p-4 flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <Wand2 className="w-6 h-6" />
+                <h2 className="text-xl font-black text-black uppercase">Auto Extract</h2>
+              </div>
+              <button 
+                onClick={() => setIsExtractModalOpen(false)}
+                className="p-1 border-2 border-black rounded-lg bg-white hover:bg-black hover:text-white transition-colors"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+            
+            <form onSubmit={handleExtract} className="p-6 space-y-4">
+              <div>
+                <label className="block text-sm font-bold text-black mb-2">Paste Client Info (Email, Text, Notes)</label>
+                <textarea 
+                  required
+                  rows="6"
+                  value={extractText}
+                  onChange={e => setExtractText(e.target.value)}
+                  className="w-full bg-white border-2 border-black rounded-xl py-3 px-4 text-black font-bold focus:outline-none focus:ring-0 focus:border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] transition-all focus:translate-x-[2px] focus:translate-y-[2px] focus:shadow-none"
+                  placeholder="e.g. John Doe from Acme Corp reached out. His email is john@acme.com and his number is 555-0198..."
+                />
+              </div>
+              
+              <button 
+                type="submit"
+                className="w-full bg-[#E9D5FF] hover:bg-[#D8B4FE] text-black font-black uppercase tracking-wider py-3 px-4 rounded-xl border-2 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] hover:shadow-none hover:translate-y-1 transition-all flex items-center justify-center gap-2"
+              >
+                <Wand2 className="w-5 h-5" />
+                Extract Details
+              </button>
+            </form>
+          </div>
+        </div>
+      )}
+
       {/* Add Client Modal */}
       {isModalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
-          <div className="bg-white rounded-2xl border-4 border-black shadow-[8px_8px_0px_0px_rgba(0,0,0,1)] w-full max-w-md overflow-hidden animate-in fade-in zoom-in duration-200">
-            <div className={`${isEditing ? 'bg-[#FEF08A]' : 'bg-[#4DE3B1]'} border-b-4 border-black p-4 flex items-center justify-between`}>
+          <div className="bg-white rounded-2xl border-4 border-black shadow-[8px_8px_0px_0px_rgba(0,0,0,1)] w-full max-w-md animate-in fade-in zoom-in duration-200">
+            <div className={`${isEditing ? 'bg-[#FEF08A]' : 'bg-[#4DE3B1]'} rounded-t-[12px] border-b-4 border-black p-4 flex items-center justify-between`}>
               <h2 className="text-xl font-black text-black uppercase">{isEditing ? 'Edit Client' : 'Add New Client'}</h2>
               <button 
                 onClick={() => setIsModalOpen(false)}
@@ -221,19 +329,19 @@ export default function Clients() {
                   value={formData.phone}
                   onChange={e => setFormData({...formData, phone: e.target.value})}
                   className="w-full bg-white border-2 border-black rounded-xl py-2 px-3 text-black font-bold focus:outline-none focus:ring-0 focus:border-black shadow-[2px_2px_0px_0px_rgba(0,0,0,1)]"
-                  placeholder="+1 (555) 000-0000"
+                  placeholder="+91 98765... or +44 20..."
                 />
               </div>
               <div>
                 <label className="block text-sm font-bold text-black mb-1">Status</label>
-                <select 
+                <Select 
                   value={formData.status}
-                  onChange={e => setFormData({...formData, status: e.target.value})}
-                  className="w-full bg-white border-2 border-black rounded-xl py-2 px-3 text-black font-bold focus:outline-none focus:ring-0 focus:border-black shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] appearance-none"
-                >
-                  <option value="Active">Active</option>
-                  <option value="Lead">Lead</option>
-                </select>
+                  onChange={(val) => setFormData({...formData, status: val})}
+                  options={[
+                    { value: 'Active', label: 'Active' },
+                    { value: 'Lead', label: 'Lead' }
+                  ]}
+                />
               </div>
               
               <div className="pt-4 flex justify-end gap-3">

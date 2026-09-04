@@ -15,8 +15,11 @@ router.get('/', auth, async (req, res) => {
 
 // Create a new invoice
 router.post('/', auth, async (req, res) => {
+  const generateInvoiceId = () => `INV-${Math.floor(100000 + Math.random() * 900000)}`;
+  
   const invoice = new Invoice({
     ...req.body,
+    invoiceId: req.body.invoiceId || generateInvoiceId(),
     user: req.user.id
   });
   try {

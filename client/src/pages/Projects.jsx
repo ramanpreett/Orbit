@@ -1,15 +1,20 @@
 import React, { useState, useEffect } from 'react';
-import { Calendar, Clock, ArrowRight, X, Trash2 } from 'lucide-react';
+import { Calendar, Clock, X, Trash2, Edit2, MoreVertical } from 'lucide-react';
 import { fetchAuth } from '../utils/fetchAuth';
 import toast from 'react-hot-toast';
-import { confirmDelete } from '../utils/toastConfirm';
+import DatePicker from '../components/DatePicker';
+import Select from '../components/Select';
+import { useAuth } from '../context/AuthContext';
+import confetti from 'canvas-confetti';
 
 const initialProjects = [];
 
 const bgColors = ["bg-[#E0F2FE]", "bg-[#FEF08A]", "bg-[#E9D5FF]", "bg-[#4DE3B1]", "bg-[#F43F5E]"];
 const badgeColors = ["bg-[#4DE3B1]", "bg-[#F59E0B]", "bg-[#FDFDFD]", "bg-[#8666F8]", "bg-[#FEF08A]"];
+const columns = ['Planning', 'In Progress', 'Review', 'Completed'];
 
 export default function Projects() {
+  const { user } = useAuth();
   const [projects, setProjects] = useState(initialProjects);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
@@ -102,171 +107,276 @@ export default function Projects() {
     });
   };
 
+  const handleDragStart = (e, projectId) => {
+    e.dataTransfer.setData('projectId', projectId);
+  };
+
+  const handleDragOver = (e) => {
+    e.preventDefault();
+  };
+
+  const handleDrop = async (e, newStatus) => {
+    e.preventDefault();
+    const projectId = e.dataTransfer.getData('projectId');
+    if (!projectId) return;
+
+    const projectToUpdate = projects.find(p => (p._id || p.id) === projectId);
+    if (!projectToUpdate || projectToUpdate.status === newStatus) return;
+
+    let newProgress = projectToUpdate.progress;
+    if (newStatus === 'Planning') newProgress = 0;
+    else if (newStatus === 'In Progress') newProgress = 30;
+    else if (newStatus === 'Review') newProgress = 80;
+    else if (newStatus === 'Completed') newProgress = 100;
+
+    const updatedData = { 
+      ...projectToUpdate, 
+      status: newStatus, 
+      progress: newProgress,
+      client: projectToUpdate.client?._id || projectToUpdate.client // ensure client is ID
+    };
+    
+    // Optimistic UI update
+    setProjects(projects.map(p => (p._id || p.id) === projectId ? { ...updatedData, client: projectToUpdate.client } : p));
+
+    // Fire confetti when moved to Completed
+    if (newStatus === 'Completed') {
+      const confettiSettings = {
+        particleCount: 150,
+        spread: 80,
+        startVelocity: 60,
+        colors: ['#4DE3B1', '#FEF08A', '#8666F8', '#F43F5E', '#000000']
+      };
+      
+      // Left corner
+      confetti({
+        ...confettiSettings,
+        angle: 60,
+        origin: { x: 0, y: 1 }
+      });
+      // Right corner
+      confetti({
+        ...confettiSettings,
+        angle: 120,
+        origin: { x: 1, y: 1 }
+      });
+    }
+
+    try {
+      const res = await fetchAuth(`/api/projects/${projectId}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(updatedData)
+      });
+      if (!res.ok) throw new Error('Update failed');
+      const savedProject = await res.json();
+      setProjects(prev => prev.map(p => (p._id || p.id) === projectId ? savedProject : p));
+      toast.success('Project updated!');
+    } catch (err) {
+      console.error(err);
+      toast.error('Failed to move project');
+      // Revert optimistic update by fetching again or resetting state
+      const res = await fetchAuth('/api/projects');
+      const data = await res.json();
+      setProjects(data);
+    }
+  };
+
   return (
-    <div className="space-y-8 relative z-10">
-      <div className="flex items-center justify-between bg-white border-2 border-black p-6 rounded-2xl shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] flex-wrap gap-4">
+    <div className="flex flex-col h-[calc(100vh-120px)] space-y-6 relative z-10">
+      {/* Header */}
+      <div className="flex items-center justify-between bg-white border-4 border-black p-6 rounded-2xl shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] shrink-0">
         <div>
-          <h1 className="text-3xl font-black text-black uppercase tracking-tight">Projects</h1>
-          <p className="text-sm font-bold text-slate-600 mt-1">Track the status and progress of all your active work.</p>
+          <h1 className="text-3xl font-black text-black uppercase tracking-tight">Projects Board</h1>
+          <p className="text-sm font-bold text-slate-600 mt-1">Manage your team's workflow and track progress.</p>
         </div>
-        <div className="flex gap-4 flex-wrap">
-          <select className="bg-white border-2 border-black text-black font-bold text-sm rounded-xl px-4 py-2 outline-none focus:ring-0 shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] appearance-none cursor-pointer">
-            <option>All Projects</option>
-            <option>In Progress</option>
-            <option>Completed</option>
-          </select>
+        <div className="flex gap-4">
           <button 
             onClick={openAddModal}
-            className="bg-[#4DE3B1] text-black px-6 py-2 rounded-xl font-bold border-2 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] hover:shadow-none hover:translate-y-1 transition-all"
+            className="bg-[#8666F8] text-white px-6 py-3 rounded-xl font-black border-4 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] hover:shadow-none hover:translate-y-1 transition-all"
           >
-            + New Project
+            + Create Issue
           </button>
         </div>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-        {projects.map(project => (
-          <div key={project._id || project.id} className="bg-white rounded-2xl border-4 border-black shadow-[8px_8px_0px_0px_rgba(0,0,0,1)] p-6 flex flex-col hover:-translate-y-2 transition-transform cursor-pointer relative overflow-hidden">
-            <div className={`absolute top-0 right-0 w-32 h-32 ${project.bg} rounded-bl-full -z-10 border-b-4 border-l-4 border-black`}></div>
-            
-            <div className="flex justify-between items-start mb-6 z-10">
-              <span className={`inline-flex items-center px-3 py-1 rounded-lg text-xs font-bold border-2 border-black shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] text-black ${project.badgeColor}`}>
-                {project.status}
-              </span>
-              <div className="flex gap-2">
-                <button 
-                  onClick={(e) => { e.stopPropagation(); openEditModal(project); }}
-                  className="text-black bg-[#FEF08A] border-2 border-black px-3 py-1.5 rounded-lg shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] font-bold text-xs hover:shadow-none hover:translate-y-0.5 transition-all"
-                >
-                  Edit
-                </button>
-                <button 
-                  onClick={(e) => handleDeleteProject(project._id || project.id, e)}
-                  className="text-white bg-[#F43F5E] border-2 border-black p-1.5 rounded-lg shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] hover:shadow-none hover:translate-y-0.5 transition-all"
-                >
-                  <Trash2 className="w-5 h-5" />
-                </button>
-              </div>
-            </div>
-            
-            <h3 className="text-xl font-black text-black mb-1 z-10">{project.name}</h3>
-            <p className="text-sm font-bold text-slate-600 mb-8 z-10">{project.client?.name || project.client || 'Unknown Client'}</p>
-            
-            <div className="mt-auto space-y-4 z-10">
-              <div>
-                <div className="flex justify-between text-sm mb-2">
-                  <span className="font-bold text-black uppercase tracking-wider text-xs">Progress</span>
-                  <span className="font-black text-black">{project.progress}%</span>
-                </div>
-                <div className="w-full bg-white border-2 border-black rounded-full h-4 shadow-[inset_2px_2px_0px_0px_rgba(0,0,0,0.2)] overflow-hidden">
-                  <div className={`${project.badgeColor} h-full border-r-2 border-black`} style={{ width: `${project.progress}%` }}></div>
-                </div>
+      {/* Kanban Board */}
+      <div className="flex-1 flex gap-6 overflow-x-auto pb-6 px-1 items-start h-full scrollbar-hide">
+        {columns.map(col => {
+          const colProjects = projects.filter(p => p.status === col);
+          const colColors = {
+            'Planning': 'bg-[#E0F2FE]',
+            'In Progress': 'bg-[#FEF08A]',
+            'Review': 'bg-[#E9D5FF]',
+            'Completed': 'bg-[#4DE3B1]'
+          };
+
+          return (
+            <div 
+              key={col} 
+              className="flex-1 w-full min-w-[200px] bg-white rounded-2xl border-4 border-black shadow-[8px_8px_0px_0px_rgba(0,0,0,1)] flex flex-col max-h-full"
+              onDragOver={handleDragOver}
+              onDrop={(e) => handleDrop(e, col)}
+            >
+              {/* Column Header */}
+              <div className={`${colColors[col]} p-4 border-b-4 border-black rounded-t-xl flex justify-between items-center sticky top-0 z-10`}>
+                <h2 className="font-black text-lg uppercase tracking-wide">{col}</h2>
+                <span className="bg-white border-2 border-black text-black text-xs font-black px-2 py-1 rounded-full shadow-[2px_2px_0px_0px_rgba(0,0,0,1)]">
+                  {colProjects.length}
+                </span>
               </div>
               
-              <div className="flex items-center gap-4 text-xs font-bold text-black pt-5 border-t-4 border-black">
-                <div className="flex items-center gap-2">
-                  <Calendar className="w-4 h-4" />
-                  <span>Due {project.dueDate || "TBD"}</span>
-                </div>
-                <div className="flex items-center gap-2">
-                  <Clock className="w-4 h-4" />
-                  <span>-- days left</span>
-                </div>
+              {/* Column Content */}
+              <div className="flex-1 overflow-y-auto p-4 space-y-4 bg-slate-50/50">
+                {colProjects.map(project => (
+                  <div 
+                    key={project._id || project.id} 
+                    draggable
+                    onDragStart={(e) => handleDragStart(e, project._id || project.id)}
+                    className="bg-white rounded-xl border-4 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] p-5 hover:-translate-y-1 hover:shadow-[6px_6px_0px_0px_rgba(0,0,0,1)] transition-all cursor-pointer relative group flex flex-col gap-3 active:scale-95 active:rotate-1"
+                    onClick={() => openEditModal(project)}
+                  >
+                    <div className={`absolute top-0 left-0 w-2 h-full ${project.badgeColor} border-r-4 border-black`}></div>
+                    
+                    <div className="flex justify-between items-start pl-2">
+                      <span className="text-xs font-black bg-slate-100 border-2 border-black px-2 py-1 rounded-md">
+                        PROJ-{(project._id || project.id || '').substring(0,4).toUpperCase()}
+                      </span>
+                      <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                        <button 
+                          onClick={(e) => handleDeleteProject(project._id || project.id, e)}
+                          className="p-1 hover:bg-[#F43F5E] hover:text-white border-2 border-transparent hover:border-black rounded-md transition-colors"
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </button>
+                      </div>
+                    </div>
+                    
+                    <h3 className="text-lg font-black text-black leading-tight pl-2">{project.name}</h3>
+                    
+                    <div className="pl-2 flex items-center justify-between mt-2">
+                      <div className="flex -space-x-2">
+                        {(project.client?.name || clients.find(c => (c._id || c.id) === project.client)?.name) && (
+                          <div className="w-8 h-8 rounded-full border-2 border-black bg-[#FEF08A] flex items-center justify-center text-xs font-bold z-10" title={project.client?.name || clients.find(c => (c._id || c.id) === project.client)?.name}>
+                            {(project.client?.name || clients.find(c => (c._id || c.id) === project.client)?.name).charAt(0).toUpperCase()}
+                          </div>
+                        )}
+                      </div>
+                      
+                      {project.dueDate && (
+                        <div className="flex items-center gap-1 text-xs font-bold px-2 py-1 bg-white border-2 border-black rounded-md shadow-[2px_2px_0px_0px_rgba(0,0,0,1)]">
+                          <Calendar className="w-3 h-3" />
+                          {project.dueDate}
+                        </div>
+                      )}
+                    </div>
+
+                    <div className="pl-2 mt-2">
+                      <div className="flex justify-between text-[10px] font-black uppercase mb-1">
+                        <span>Progress</span>
+                        <span>{project.progress}%</span>
+                      </div>
+                      <div className="w-full bg-slate-100 border-2 border-black rounded-full h-2.5 overflow-hidden">
+                        <div className="bg-[#8666F8] h-full border-r-2 border-black" style={{ width: `${project.progress}%` }}></div>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+                
+                {colProjects.length === 0 && (
+                  <div className="text-center p-6 text-slate-400 font-black border-4 border-dashed border-slate-300 rounded-xl bg-white/50">
+                    Drop items here
+                  </div>
+                )}
+                
               </div>
             </div>
-          </div>
-        ))}
+          );
+        })}
       </div>
 
       {/* Add Project Modal */}
       {isModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
-          <div className="bg-white rounded-2xl border-4 border-black shadow-[8px_8px_0px_0px_rgba(0,0,0,1)] w-full max-w-md overflow-hidden animate-in fade-in zoom-in duration-200">
-            <div className={`${isEditing ? 'bg-[#FEF08A]' : 'bg-[#E0F2FE]'} border-b-4 border-black p-4 flex items-center justify-between`}>
-              <h2 className="text-xl font-black text-black uppercase">{isEditing ? 'Edit Project' : 'Create New Project'}</h2>
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4 backdrop-blur-sm">
+          <div className="bg-white rounded-2xl border-4 border-black shadow-[8px_8px_0px_0px_rgba(0,0,0,1)] w-full max-w-md animate-in fade-in zoom-in duration-200">
+            <div className={`${isEditing ? 'bg-[#FEF08A]' : 'bg-[#E0F2FE]'} rounded-t-[12px] border-b-4 border-black p-4 flex items-center justify-between`}>
+              <h2 className="text-xl font-black text-black uppercase tracking-tight">{isEditing ? 'Edit Issue' : 'Create Issue'}</h2>
               <button 
                 onClick={() => setIsModalOpen(false)}
-                className="p-1 border-2 border-black rounded-lg bg-white hover:bg-black hover:text-white transition-colors"
+                className="p-1.5 border-2 border-black rounded-lg bg-white hover:bg-black hover:text-white transition-colors shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] hover:shadow-none hover:translate-y-0.5"
               >
                 <X className="w-5 h-5" />
               </button>
             </div>
             
-            <form onSubmit={handleSubmit} className="p-6 space-y-4">
+            <form onSubmit={handleSubmit} className="p-6 space-y-5 bg-[#FDFDFD]">
               <div>
-                <label className="block text-sm font-bold text-black mb-1">Project Name</label>
+                <label className="block text-xs font-black text-black uppercase tracking-wider mb-2">Issue Title</label>
                 <input 
                   type="text" 
                   required
                   value={formData.name}
                   onChange={e => setFormData({...formData, name: e.target.value})}
-                  className="w-full bg-white border-2 border-black rounded-xl py-2 px-3 text-black font-bold focus:outline-none shadow-[2px_2px_0px_0px_rgba(0,0,0,1)]"
-                  placeholder="Website Redesign"
+                  className="w-full bg-white border-2 border-black rounded-xl py-2.5 px-3 text-black font-bold focus:outline-none shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] focus:shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] transition-shadow"
+                  placeholder="e.g., Update Landing Page"
                 />
               </div>
               <div>
-                <label className="block text-sm font-bold text-black mb-1">Client Name</label>
-                <select 
-                  required
+                <label className="block text-xs font-black text-black uppercase tracking-wider mb-2">Assign to Client</label>
+                <Select 
                   value={formData.client}
-                  onChange={e => setFormData({...formData, client: e.target.value})}
-                  className="w-full bg-white border-2 border-black rounded-xl py-2 px-3 text-black font-bold focus:outline-none shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] appearance-none"
-                >
-                  <option value="" disabled>Select a client</option>
-                  {clients.map(c => (
-                    <option key={c._id || c.id} value={c._id || c.id}>{c.name}</option>
-                  ))}
-                </select>
+                  onChange={(val) => setFormData({...formData, client: val})}
+                  placeholder="Select a client..."
+                  options={clients.map(c => ({ value: c._id || c.id, label: c.name }))}
+                />
               </div>
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-2 gap-5">
                 <div>
-                  <label className="block text-sm font-bold text-black mb-1">Status</label>
-                  <select 
+                  <label className="block text-xs font-black text-black uppercase tracking-wider mb-2">Status</label>
+                  <Select 
                     value={formData.status}
-                    onChange={e => setFormData({...formData, status: e.target.value})}
-                    className="w-full bg-white border-2 border-black rounded-xl py-2 px-3 text-black font-bold focus:outline-none shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] appearance-none"
-                  >
-                    <option value="Planning">Planning</option>
-                    <option value="In Progress">In Progress</option>
-                    <option value="Review">Review</option>
-                    <option value="Completed">Completed</option>
-                  </select>
+                    onChange={(val) => setFormData({...formData, status: val})}
+                    options={[
+                      { value: 'Planning', label: 'Planning' },
+                      { value: 'In Progress', label: 'In Progress' },
+                      { value: 'Review', label: 'Review' },
+                      { value: 'Completed', label: 'Completed' }
+                    ]}
+                  />
                 </div>
                 <div>
-                  <label className="block text-sm font-bold text-black mb-1">Progress (%)</label>
+                  <label className="block text-xs font-black text-black uppercase tracking-wider mb-2">Progress (%)</label>
                   <input 
                     type="number" 
                     min="0" max="100"
                     value={formData.progress}
                     onChange={e => setFormData({...formData, progress: e.target.value})}
-                    className="w-full bg-white border-2 border-black rounded-xl py-2 px-3 text-black font-bold focus:outline-none shadow-[2px_2px_0px_0px_rgba(0,0,0,1)]"
+                    className="w-full bg-white border-2 border-black rounded-xl py-2.5 px-3 text-black font-bold focus:outline-none shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] focus:shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] transition-shadow"
                   />
                 </div>
               </div>
               <div>
-                <label className="block text-sm font-bold text-black mb-1">Due Date</label>
-                <input 
-                  type="text" 
+                <label className="block text-xs font-black text-black uppercase tracking-wider mb-2">Due Date</label>
+                <DatePicker 
                   value={formData.dueDate}
-                  onChange={e => setFormData({...formData, dueDate: e.target.value})}
-                  className="w-full bg-white border-2 border-black rounded-xl py-2 px-3 text-black font-bold focus:outline-none shadow-[2px_2px_0px_0px_rgba(0,0,0,1)]"
-                  placeholder="e.g. Dec 31, 2026"
+                  onChange={(date) => setFormData({...formData, dueDate: date})}
+                  placeholder="e.g., Dec 31, 2026"
                 />
               </div>
               
-              <div className="pt-4 flex justify-end gap-3">
+              <div className="pt-6 flex justify-end gap-4 border-t-4 border-black mt-6">
                 <button 
                   type="button"
                   onClick={() => setIsModalOpen(false)}
-                  className="px-6 py-2 rounded-xl font-bold border-2 border-transparent text-slate-600 hover:text-black hover:bg-gray-100 transition-colors"
+                  className="px-6 py-2.5 rounded-xl font-black border-2 border-black bg-white text-black shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] hover:shadow-none hover:translate-y-0.5 transition-all"
                 >
                   Cancel
                 </button>
                 <button 
                   type="submit"
-                  className="bg-[#4DE3B1] text-black px-6 py-2 rounded-xl font-bold border-2 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] hover:shadow-none hover:translate-y-1 transition-all"
+                  className="bg-[#8666F8] text-white px-6 py-2.5 rounded-xl font-black border-2 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] hover:shadow-none hover:translate-y-1 transition-all"
                 >
-                  {isEditing ? 'Save Changes' : 'Save Project'}
+                  {isEditing ? 'Save Changes' : 'Create Issue'}
                 </button>
               </div>
             </form>

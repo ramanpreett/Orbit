@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Users, Briefcase, DollarSign, TrendingUp, ArrowUpRight } from 'lucide-react';
 import { fetchAuth } from '../utils/fetchAuth';
+import { Link } from 'react-router-dom';
 
 const StatCard = ({ title, value, icon: Icon, bgColor }) => (
   <div className={`p-6 rounded-2xl border-4 border-black shadow-[8px_8px_0px_0px_rgba(0,0,0,1)] flex items-start justify-between ${bgColor} transition-transform hover:-translate-y-1 hover:shadow-[8px_8px_0px_0px_rgba(0,0,0,1)]`}>
@@ -76,9 +77,9 @@ export default function Dashboard() {
         <div className="lg:col-span-2 bg-white rounded-2xl border-2 border-black shadow-[6px_6px_0px_0px_rgba(0,0,0,1)] overflow-hidden">
           <div className="p-6 border-b-2 border-black flex items-center justify-between bg-[#E9D5FF]">
             <h2 className="text-xl font-black text-black uppercase">Active Projects</h2>
-            <button className="text-sm font-bold text-black hover:underline underline-offset-4 decoration-2 transition-colors flex items-center gap-1 bg-white px-3 py-1 border-2 border-black rounded-lg shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] hover:translate-y-0.5 hover:shadow-none">
+            <Link to="/projects" className="text-sm font-bold text-black hover:underline underline-offset-4 decoration-2 transition-colors flex items-center gap-1 bg-white px-3 py-1 border-2 border-black rounded-lg shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] hover:translate-y-0.5 hover:shadow-none">
               View All <ArrowUpRight className="w-4 h-4" />
-            </button>
+            </Link>
           </div>
           <div className="p-0 overflow-x-auto">
             <table className="w-full text-left border-collapse">
@@ -94,7 +95,7 @@ export default function Dashboard() {
                 {projects.map((item, idx) => (
                   <tr key={idx} className="hover:bg-gray-50 transition-colors">
                     <td className="py-4 px-6 text-sm font-bold text-black border-r-2 border-black">{item.name}</td>
-                    <td className="py-4 px-6 text-sm font-bold text-slate-600 border-r-2 border-black">{item.client}</td>
+                    <td className="py-4 px-6 text-sm font-bold text-slate-600 border-r-2 border-black">{item.client?.name || item.client}</td>
                     <td className="py-4 px-6 border-r-2 border-black">
                       <span className={`inline-flex items-center px-3 py-1 rounded-lg text-xs font-bold border-2 border-black shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] text-black ${item.badgeColor || 'bg-[#FEF08A]'}`}>
                         {item.status}
@@ -118,15 +119,15 @@ export default function Dashboard() {
           </div>
           <div className="p-0 divide-y-2 divide-black">
             {meetings.map((mtg, i) => (
-              <div key={i} className="flex gap-4 items-center p-5 hover:bg-gray-50 transition-colors">
-                <div className={`w-12 h-12 rounded-xl border-2 border-black shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] shrink-0 flex items-center justify-center bg-[#E0F2FE]`}>
+              <Link key={i} to="/meetings" className="flex gap-4 items-center p-5 hover:bg-gray-50 transition-colors cursor-pointer group">
+                <div className={`w-12 h-12 rounded-xl border-2 border-black shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] shrink-0 flex items-center justify-center bg-[#E0F2FE] group-hover:bg-[#BAE6FD] transition-colors`}>
                    <span className="font-black text-black text-xs text-center">{mtg.date.substring(0, 5)}</span>
                 </div>
                 <div>
-                  <p className="text-base font-bold text-black">{mtg.title}</p>
+                  <p className="text-base font-bold text-black group-hover:underline underline-offset-2">{mtg.title}</p>
                   <p className="text-sm font-bold text-slate-600 mt-0.5">{mtg.date}</p>
                 </div>
-              </div>
+              </Link>
             ))}
             {meetings.length === 0 && (
               <div className="p-5 text-center text-sm font-bold text-slate-600">No upcoming meetings</div>

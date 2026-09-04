@@ -3,6 +3,8 @@ import { Video, Calendar as CalendarIcon, Clock, Users, X, Trash2 } from 'lucide
 import { fetchAuth } from '../utils/fetchAuth';
 import toast from 'react-hot-toast';
 import { confirmDelete } from '../utils/toastConfirm';
+import Select from '../components/Select';
+import DatePicker from '../components/DatePicker';
 
 export default function Meetings() {
   const [meetings, setMeetings] = useState([]);
@@ -10,6 +12,7 @@ export default function Meetings() {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
   const [editId, setEditId] = useState(null);
+  const [isLoading, setIsLoading] = useState(false);
   const [formData, setFormData] = useState({ title: '', client: '', date: '', type: 'Sync', link: '' });
 
   useEffect(() => {
@@ -46,7 +49,14 @@ export default function Meetings() {
 
   const handleAddMeeting = async (e) => {
     e.preventDefault();
-    if (!formData.title || !formData.client) return;
+    if (!formData.title || !formData.client || !formData.date) return;
+    
+    if (formData.link && !formData.link.startsWith('http')) {
+      toast.error('Meeting link must be a valid URL starting with http:// or https://');
+      return;
+    }
+
+    setIsLoading(true);
     try {
       if (isEditing) {
         const res = await fetchAuth(`/api/meetings/${editId}`, {
@@ -71,6 +81,8 @@ export default function Meetings() {
     } catch (err) {
       console.error(err);
       toast.error(`Failed to ${isEditing ? 'update' : 'schedule'} meeting`);
+    } finally {
+      setIsLoading(false);
     }
   };
 
@@ -119,10 +131,7 @@ export default function Meetings() {
           {meetings.map((meeting) => (
             <div key={meeting._id || meeting.id} className="bg-white rounded-2xl border-4 border-black shadow-[8px_8px_0px_0px_rgba(0,0,0,1)] p-6 flex flex-col hover:-translate-y-2 transition-transform relative overflow-hidden">
               <div className="absolute top-0 right-0 w-24 h-24 bg-[#E0F2FE] rounded-bl-full -z-10 border-b-4 border-l-4 border-black"></div>
-              <div className="flex justify-between items-start mb-6 z-10">
-                <span className="inline-flex items-center px-3 py-1 rounded-lg text-xs font-bold border-2 border-black shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] bg-[#FEF08A] text-black">
-                  {meeting.type}
-                </span>
+              <div className="flex justify-end items-start mb-6 z-10">
                 <div className="flex gap-2">
                   <button 
                     onClick={(e) => { e.stopPropagation(); openEditModal(meeting); }}
@@ -158,8 +167,8 @@ export default function Meetings() {
       {/* Add Meeting Modal */}
       {isModalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
-          <div className="bg-white rounded-2xl border-4 border-black shadow-[8px_8px_0px_0px_rgba(0,0,0,1)] w-full max-w-md overflow-hidden animate-in fade-in zoom-in duration-200">
-            <div className={`${isEditing ? 'bg-[#FEF08A]' : 'bg-[#E9D5FF]'} border-b-4 border-black p-4 flex items-center justify-between`}>
+          <div className="bg-white rounded-2xl border-4 border-black shadow-[8px_8px_0px_0px_rgba(0,0,0,1)] w-full max-w-md animate-in fade-in zoom-in duration-200">
+            <div className={`${isEditing ? 'bg-[#FEF08A]' : 'bg-[#E9D5FF]'} rounded-t-[12px] border-b-4 border-black p-4 flex items-center justify-between`}>
               <h2 className="text-xl font-black text-black uppercase">{isEditing ? 'Edit Meeting' : 'Schedule Meeting'}</h2>
               <button 
                 onClick={() => setIsModalOpen(false)}
@@ -183,67 +192,54 @@ export default function Meetings() {
               </div>
               <div>
                 <label className="block text-sm font-bold text-black mb-1">Client Name</label>
-                <select 
-                  required
+                <Select 
                   value={formData.client}
-                  onChange={e => setFormData({...formData, client: e.target.value})}
-                  className="w-full bg-white border-2 border-black rounded-xl py-2 px-3 text-black font-bold focus:outline-none focus:ring-0 focus:border-black shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] appearance-none"
-                >
-                  <option value="" disabled>Select a client</option>
-                  {clients.map(c => (
-                    <option key={c._id || c.id} value={c._id || c.id}>{c.name}</option>
-                  ))}
-                </select>
+                  onChange={(val) => setFormData({...formData, client: val})}
+                  placeholder="Select a client"
+                  options={clients.map(c => ({ value: c._id || c.id, label: c.name }))}
+                />
               </div>
               <div>
                 <label className="block text-sm font-bold text-black mb-1">Date & Time</label>
-                <input 
-                  type="text" 
-                  required
+                <DatePicker 
                   value={formData.date}
-                  onChange={e => setFormData({...formData, date: e.target.value})}
-                  className="w-full bg-white border-2 border-black rounded-xl py-2 px-3 text-black font-bold focus:outline-none focus:ring-0 focus:border-black shadow-[2px_2px_0px_0px_rgba(0,0,0,1)]"
-                  placeholder="Tomorrow at 10 AM"
+                  onChange={(val) => setFormData({...formData, date: val})}
+                  placeholder="Select date and time"
                 />
               </div>
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-sm font-bold text-black mb-1">Type</label>
-                  <select 
-                    value={formData.type}
-                    onChange={e => setFormData({...formData, type: e.target.value})}
-                    className="w-full bg-white border-2 border-black rounded-xl py-2 px-3 text-black font-bold focus:outline-none focus:ring-0 focus:border-black shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] appearance-none"
-                  >
-                    <option value="Sync">Sync</option>
-                    <option value="Kickoff">Kickoff</option>
-                    <option value="Review">Review</option>
-                  </select>
-                </div>
-                <div>
-                  <label className="block text-sm font-bold text-black mb-1">Meeting Link</label>
-                  <input 
-                    type="text" 
-                    value={formData.link}
-                    onChange={e => setFormData({...formData, link: e.target.value})}
-                    className="w-full bg-white border-2 border-black rounded-xl py-2 px-3 text-black font-bold focus:outline-none focus:ring-0 focus:border-black shadow-[2px_2px_0px_0px_rgba(0,0,0,1)]"
-                    placeholder="Zoom / Meet URL"
-                  />
-                </div>
+              <div>
+                <label className="block text-sm font-bold text-black mb-1">Meeting Link</label>
+                <input 
+                  type="text" 
+                  value={formData.link}
+                  onChange={e => setFormData({...formData, link: e.target.value})}
+                  className="w-full bg-white border-2 border-black rounded-xl py-2 px-3 text-black font-bold focus:outline-none focus:ring-0 focus:border-black shadow-[2px_2px_0px_0px_rgba(0,0,0,1)]"
+                  placeholder="Zoom / Meet URL"
+                />
               </div>
               
               <div className="pt-4 flex justify-end gap-3">
                 <button 
                   type="button"
                   onClick={() => setIsModalOpen(false)}
-                  className="px-6 py-2 rounded-xl font-bold border-2 border-transparent text-slate-600 hover:text-black hover:bg-gray-100 transition-colors"
+                  disabled={isLoading}
+                  className="px-6 py-2 rounded-xl font-bold border-2 border-transparent text-slate-600 hover:text-black hover:bg-gray-100 transition-colors disabled:opacity-50"
                 >
                   Cancel
                 </button>
                 <button 
                   type="submit"
-                  className="bg-[#E0F2FE] text-black px-6 py-2 rounded-xl font-bold border-2 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] hover:shadow-none hover:translate-y-1 transition-all uppercase tracking-wide"
+                  disabled={isLoading}
+                  className="bg-[#E0F2FE] text-black px-6 py-2 rounded-xl font-bold border-2 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] hover:shadow-none hover:translate-y-1 transition-all uppercase tracking-wide disabled:opacity-50 disabled:shadow-none disabled:translate-y-1 flex items-center justify-center min-w-[120px]"
                 >
-                  {isEditing ? 'Save Changes' : 'Schedule'}
+                  {isLoading ? (
+                    <span className="flex items-center gap-2">
+                      <div className="w-4 h-4 border-2 border-black border-t-transparent rounded-full animate-spin"></div>
+                      Saving...
+                    </span>
+                  ) : (
+                    isEditing ? 'Save Changes' : 'Schedule'
+                  )}
                 </button>
               </div>
             </form>

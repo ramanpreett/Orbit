@@ -5,6 +5,8 @@ import toast from 'react-hot-toast';
 import { confirmDelete } from '../utils/toastConfirm';
 import { jsPDF } from 'jspdf';
 import html2canvas from 'html2canvas';
+import Select from '../components/Select';
+import DatePicker from '../components/DatePicker';
 
 export default function Invoices() {
   const [invoices, setInvoices] = useState([]);
@@ -49,7 +51,10 @@ export default function Invoices() {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    if (!formData.invoiceId || !formData.client) return;
+    if (!formData.client || !formData.amount || !formData.date) {
+      toast.error("Please fill in all required fields.");
+      return;
+    }
 
     try {
       if (isEditing) {
@@ -59,6 +64,7 @@ export default function Invoices() {
           body: JSON.stringify(formData)
         });
         const updatedInvoice = await res.json();
+        if (!res.ok) throw new Error(updatedInvoice.message || 'Failed to update');
         setInvoices(invoices.map(i => (i._id || i.id) === editId ? updatedInvoice : i));
         toast.success('Invoice updated successfully!');
       } else {
@@ -68,13 +74,14 @@ export default function Invoices() {
           body: JSON.stringify(formData)
         });
         const savedInvoice = await res.json();
+        if (!res.ok) throw new Error(savedInvoice.message || 'Failed to create');
         setInvoices([savedInvoice, ...invoices]);
         toast.success('Invoice created successfully!');
       }
       setIsModalOpen(false);
     } catch (err) {
       console.error(err);
-      toast.error(`Failed to ${isEditing ? 'update' : 'create'} invoice`);
+      toast.error(`Error: ${err.message}`);
     }
   };
 
@@ -91,8 +98,7 @@ export default function Invoices() {
     });
   };
 
-  const handleExportPDF = async (inv) => {
-    const toastId = toast.loading('Generating PDF...');
+  const generatePDF = async (inv) => {
     const invoiceElement = document.createElement('div');
     invoiceElement.innerHTML = `
       <div style="padding: 40px; font-family: sans-serif; width: 600px; background: white; color: black; border: 4px solid black;">
@@ -145,13 +151,35 @@ export default function Invoices() {
       const pdfHeight = (canvas.height * pdfWidth) / canvas.width;
       
       pdf.addImage(imgData, 'PNG', 10, 10, pdfWidth - 20, pdfHeight - (20 * (pdfHeight/pdfWidth)));
+      return pdf;
+    } finally {
+      document.body.removeChild(invoiceElement);
+    }
+  };
+
+  const handleExportPDF = async (inv) => {
+    const toastId = toast.loading('Generating PDF...');
+    try {
+      const pdf = await generatePDF(inv);
       pdf.save(`Invoice_${inv.invoiceId}.pdf`);
       toast.success('PDF exported successfully!', { id: toastId });
     } catch (err) {
       console.error(err);
       toast.error('Failed to export PDF', { id: toastId });
-    } finally {
-      document.body.removeChild(invoiceElement);
+    }
+  };
+
+  const handleViewPDF = async (inv) => {
+    const toastId = toast.loading('Opening preview...');
+    try {
+      const pdf = await generatePDF(inv);
+      const pdfBlob = pdf.output('blob');
+      const blobUrl = URL.createObjectURL(pdfBlob);
+      window.open(blobUrl, '_blank');
+      toast.dismiss(toastId);
+    } catch (err) {
+      console.error(err);
+      toast.error('Failed to generate preview', { id: toastId });
     }
   };
 
@@ -215,7 +243,11 @@ export default function Invoices() {
                       >
                         <Trash2 className="w-5 h-5" />
                       </button>
-                      <button className="p-2 text-black hover:bg-[#E0F2FE] border-2 border-transparent hover:border-black rounded-xl transition-all hover:shadow-[2px_2px_0px_0px_rgba(0,0,0,1)]">
+                      <button 
+                        onClick={() => handleViewPDF(inv)}
+                        className="p-2 text-black hover:bg-[#E0F2FE] border-2 border-transparent hover:border-black rounded-xl transition-all hover:shadow-[2px_2px_0px_0px_rgba(0,0,0,1)]"
+                        title="View Invoice"
+                      >
                         <FileText className="w-5 h-5" />
                       </button>
                       <button 
@@ -247,8 +279,8 @@ export default function Invoices() {
       {/* Add Invoice Modal */}
       {isModalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
-          <div className="bg-white rounded-2xl border-4 border-black shadow-[8px_8px_0px_0px_rgba(0,0,0,1)] w-full max-w-md overflow-hidden animate-in fade-in zoom-in duration-200">
-            <div className={`${isEditing ? 'bg-[#FEF08A]' : 'bg-[#4DE3B1]'} border-b-4 border-black p-4 flex items-center justify-between`}>
+          <div className="bg-white rounded-2xl border-4 border-black shadow-[8px_8px_0px_0px_rgba(0,0,0,1)] w-full max-w-md animate-in fade-in zoom-in duration-200">
+            <div className={`${isEditing ? 'bg-[#FEF08A]' : 'bg-[#4DE3B1]'} rounded-t-[12px] border-b-4 border-black p-4 flex items-center justify-between`}>
               <h2 className="text-xl font-black text-black uppercase">{isEditing ? 'Edit Invoice' : 'Create Invoice'}</h2>
               <button 
                 onClick={() => setIsModalOpen(false)}
@@ -259,67 +291,46 @@ export default function Invoices() {
             </div>
             
             <form onSubmit={handleSubmit} className="p-6 space-y-4">
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-sm font-bold text-black mb-1">Invoice ID</label>
-                  <input 
-                    type="text" 
-                    required
-                    value={formData.invoiceId}
-                    onChange={e => setFormData({...formData, invoiceId: e.target.value})}
-                    className="w-full bg-white border-2 border-black rounded-xl py-2 px-3 text-black font-bold focus:outline-none focus:ring-0 focus:border-black shadow-[2px_2px_0px_0px_rgba(0,0,0,1)]"
-                    placeholder="INV-001"
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-bold text-black mb-1">Amount</label>
-                  <input 
-                    type="text" 
-                    required
-                    value={formData.amount}
-                    onChange={e => setFormData({...formData, amount: e.target.value})}
-                    className="w-full bg-white border-2 border-black rounded-xl py-2 px-3 text-black font-bold focus:outline-none focus:ring-0 focus:border-black shadow-[2px_2px_0px_0px_rgba(0,0,0,1)]"
-                    placeholder="$1,000.00"
-                  />
-                </div>
+              <div>
+                <label className="block text-sm font-bold text-black mb-1">Amount</label>
+                <input 
+                  type="text" 
+                  required
+                  value={formData.amount}
+                  onChange={e => setFormData({...formData, amount: e.target.value})}
+                  className="w-full bg-white border-2 border-black rounded-xl py-2 px-3 text-black font-bold focus:outline-none focus:ring-0 focus:border-black shadow-[2px_2px_0px_0px_rgba(0,0,0,1)]"
+                  placeholder="$1,000.00"
+                />
               </div>
               <div>
                 <label className="block text-sm font-bold text-black mb-1">Client Name</label>
-                <select 
-                  required
+                <Select 
                   value={formData.client}
-                  onChange={e => setFormData({...formData, client: e.target.value})}
-                  className="w-full bg-white border-2 border-black rounded-xl py-2 px-3 text-black font-bold focus:outline-none focus:ring-0 focus:border-black shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] appearance-none"
-                >
-                  <option value="" disabled>Select a client</option>
-                  {clients.map(c => (
-                    <option key={c._id || c.id} value={c._id || c.id}>{c.name}</option>
-                  ))}
-                </select>
+                  onChange={(val) => setFormData({...formData, client: val})}
+                  placeholder="Select a client"
+                  options={clients.map(c => ({ value: c._id || c.id, label: c.name }))}
+                />
               </div>
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <label className="block text-sm font-bold text-black mb-1">Date Issued</label>
-                  <input 
-                    type="text" 
-                    required
+                  <DatePicker 
                     value={formData.date}
-                    onChange={e => setFormData({...formData, date: e.target.value})}
-                    className="w-full bg-white border-2 border-black rounded-xl py-2 px-3 text-black font-bold focus:outline-none focus:ring-0 focus:border-black shadow-[2px_2px_0px_0px_rgba(0,0,0,1)]"
+                    onChange={(val) => setFormData({...formData, date: val})}
                     placeholder="Dec 31, 2026"
                   />
                 </div>
                 <div>
                   <label className="block text-sm font-bold text-black mb-1">Status</label>
-                  <select 
+                  <Select 
                     value={formData.status}
-                    onChange={e => setFormData({...formData, status: e.target.value})}
-                    className="w-full bg-white border-2 border-black rounded-xl py-2 px-3 text-black font-bold focus:outline-none focus:ring-0 focus:border-black shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] appearance-none"
-                  >
-                    <option value="Pending">Pending</option>
-                    <option value="Paid">Paid</option>
-                    <option value="Overdue">Overdue</option>
-                  </select>
+                    onChange={(val) => setFormData({...formData, status: val})}
+                    options={[
+                      { value: 'Pending', label: 'Pending' },
+                      { value: 'Paid', label: 'Paid' },
+                      { value: 'Overdue', label: 'Overdue' }
+                    ]}
+                  />
                 </div>
               </div>
               
