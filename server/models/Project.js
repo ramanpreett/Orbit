@@ -16,7 +16,12 @@ const projectSchema = new mongoose.Schema({
   dueDate: { type: String },
   progress: { type: Number, default: 0 },
   bg: { type: String },
-  badgeColor: { type: String }
+  badgeColor: { type: String },
+  timeLogs: [{
+    description: String,
+    hours: Number,
+    date: { type: Date, default: Date.now }
+  }]
 }, { timestamps: true });
 
 module.exports = mongoose.model('Project', projectSchema);

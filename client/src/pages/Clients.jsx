@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { MoreVertical, Mail, Phone, Plus, X, Trash2, Wand2, Users, UserCheck } from 'lucide-react';
+import { MoreVertical, Mail, Phone, Plus, X, Trash2, Wand2, Users, UserCheck, Link as LinkIcon, Search, Filter, Folder } from 'lucide-react';
 import { fetchAuth } from '../utils/fetchAuth';
 import toast from 'react-hot-toast';
 import { confirmDelete } from '../utils/toastConfirm';
@@ -17,6 +17,14 @@ export default function Clients() {
   const [isEditing, setIsEditing] = useState(false);
   const [formData, setFormData] = useState({ name: '', company: '', email: '', phone: '', status: 'Lead' });
   const [editId, setEditId] = useState(null);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [statusFilter, setStatusFilter] = useState('All');
+
+  const filteredClients = clients.filter(client => {
+    const matchesSearch = (client.name + (client.company || '') + client.email).toLowerCase().includes(searchQuery.toLowerCase());
+    const matchesStatus = statusFilter === 'All' || client.status === statusFilter;
+    return matchesSearch && matchesStatus;
+  });
 
   useEffect(() => {
     fetchAuth('/api/clients')
@@ -118,6 +126,16 @@ export default function Clients() {
     });
   };
 
+  const copyPortalLink = (client) => {
+    if (!client.magicLinkToken) {
+      toast.error('Portal link not available for this client yet.');
+      return;
+    }
+    const url = `${window.location.origin}/portal/${client.magicLinkToken}`;
+    navigator.clipboard.writeText(url);
+    toast.success('Portal link copied to clipboard!');
+  };
+
   return (
     <div className="space-y-8 h-full flex flex-col relative z-10">
       <div className="flex items-center justify-between bg-white border-2 border-black p-6 rounded-2xl shadow-[4px_4px_0px_0px_rgba(0,0,0,1)]">
@@ -169,6 +187,30 @@ export default function Clients() {
         </div>
       </div>
 
+      <div className="flex flex-col sm:flex-row gap-4 flex-shrink-0">
+        <div className="relative flex-1">
+          <input
+            type="text"
+            className="block w-full px-4 py-2 border-2 border-black rounded-xl bg-white text-black font-bold focus:outline-none focus:ring-0 focus:border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] transition-all focus:translate-x-[2px] focus:translate-y-[2px] focus:shadow-none"
+            placeholder="Search clients by name, email, or company..."
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+          />
+        </div>
+        <div className="w-full sm:w-48 flex items-center justify-center z-20">
+          <Select
+            value={statusFilter}
+            onChange={(val) => setStatusFilter(val)}
+            options={[
+              { value: 'All', label: 'All Statuses' },
+              { value: 'Active', label: 'Active' },
+              { value: 'Lead', label: 'Lead' },
+              { value: 'Inactive', label: 'Inactive' }
+            ]}
+          />
+        </div>
+      </div>
+
       <div className="bg-white rounded-2xl border-2 border-black shadow-[6px_6px_0px_0px_rgba(0,0,0,1)] flex-1 flex flex-col overflow-hidden min-h-0">
         <div className="overflow-auto flex-1">
           <table className="w-full text-left border-collapse relative">
@@ -176,12 +218,13 @@ export default function Clients() {
               <tr className="bg-[#FEF08A]">
                 <th className="py-4 px-6 text-sm font-black text-black uppercase tracking-wider border-r-2 border-black">Client Name</th>
                 <th className="py-4 px-6 text-sm font-black text-black uppercase tracking-wider border-r-2 border-black">Contact Info</th>
+                <th className="py-4 px-6 text-sm font-black text-black uppercase tracking-wider border-r-2 border-black">Projects</th>
                 <th className="py-4 px-6 text-sm font-black text-black uppercase tracking-wider border-r-2 border-black">Status</th>
                 <th className="py-4 px-6 text-sm font-black text-black uppercase tracking-wider text-right">Actions</th>
               </tr>
             </thead>
             <tbody className="divide-y-2 divide-black">
-              {clients.map((client) => (
+              {filteredClients.map((client) => (
                 <tr key={client._id || client.id} className="hover:bg-gray-50 transition-colors">
                   <td className="py-4 px-6 border-r-2 border-black">
                     <div className="flex items-center gap-4">
@@ -205,6 +248,19 @@ export default function Clients() {
                     </div>
                   </td>
                   <td className="py-4 px-6 border-r-2 border-black">
+                    {client.projects && client.projects.length > 0 ? (
+                      <div className="flex flex-wrap gap-2">
+                        {client.projects.map(project => (
+                          <span key={project._id} className="inline-flex items-center gap-1 px-2 py-1 bg-[#FEF08A] border-2 border-black rounded-lg text-xs font-bold text-black shadow-[2px_2px_0px_0px_rgba(0,0,0,1)]">
+                            <Folder className="w-3 h-3" /> {project.name}
+                          </span>
+                        ))}
+                      </div>
+                    ) : (
+                      <span className="text-sm font-bold text-gray-400 italic">No projects yet</span>
+                    )}
+                  </td>
+                  <td className="py-4 px-6 border-r-2 border-black">
                     <span className={`inline-flex items-center px-3 py-1 rounded-lg text-xs font-bold border-2 border-black shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] text-black
                       ${client.status === 'Active' ? 'bg-[#4DE3B1]' : 'bg-[#E9D5FF]'}`}>
                       {client.status}
@@ -212,6 +268,13 @@ export default function Clients() {
                   </td>
                   <td className="py-4 px-6 text-right">
                     <div className="flex justify-end gap-2">
+                      <button 
+                        onClick={() => copyPortalLink(client)}
+                        className="px-3 py-1 bg-[#E0F2FE] hover:bg-[#BAE6FD] text-black font-bold border-2 border-black rounded-xl transition-all shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] hover:shadow-none hover:translate-y-0.5 flex items-center gap-1"
+                        title="Copy Portal Link"
+                      >
+                        <LinkIcon className="w-4 h-4" /> Link
+                      </button>
                       <button 
                         onClick={() => openEditModal(client)}
                         className="px-3 py-1 bg-[#FEF08A] hover:bg-yellow-300 text-black font-bold border-2 border-black rounded-xl transition-all shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] hover:shadow-none hover:translate-y-0.5"

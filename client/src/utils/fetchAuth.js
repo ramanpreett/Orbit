@@ -1,3 +1,5 @@
+import { apiUrl } from './api';
+
 export const fetchAuth = async (url, options = {}) => {
   const token = localStorage.getItem('token');
   const headers = {
@@ -9,8 +11,7 @@ export const fetchAuth = async (url, options = {}) => {
     headers['Authorization'] = `Bearer ${token}`;
   }
 
-  // Adjust url if needed, for now we assume it's like '/api/clients' which proxied by vite
-  const response = await fetch(url, {
+  const response = await fetch(apiUrl(url), {
     ...options,
     headers,
   });

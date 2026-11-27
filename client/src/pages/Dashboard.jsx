@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { Users, Briefcase, DollarSign, TrendingUp, ArrowUpRight } from 'lucide-react';
+import { Users, Briefcase, DollarSign, TrendingUp, ArrowUpRight, BarChart2, PieChart as PieChartIcon } from 'lucide-react';
+import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, PieChart, Pie, Cell } from 'recharts';
 import { fetchAuth } from '../utils/fetchAuth';
 import { Link } from 'react-router-dom';
 
@@ -19,6 +20,8 @@ export default function Dashboard() {
   const [stats, setStats] = useState({ revenue: 0, activeProjects: 0, totalClients: 0, pendingInvoices: 0 });
   const [projects, setProjects] = useState([]);
   const [meetings, setMeetings] = useState([]);
+  const [revenueData, setRevenueData] = useState([]);
+  const [projectStatusData, setProjectStatusData] = useState([]);
 
   useEffect(() => {
     const loadDashboardData = async () => {
@@ -52,6 +55,28 @@ export default function Dashboard() {
           pendingInvoices: pending
         });
 
+        // Calculate Project Status Data
+        const statusCounts = [
+          { name: 'Planning', value: projs.filter(p => p.status === 'Planning').length, color: '#E0F2FE' },
+          { name: 'In Progress', value: projs.filter(p => p.status === 'In Progress').length, color: '#FEF08A' },
+          { name: 'Review', value: projs.filter(p => p.status === 'Review').length, color: '#E9D5FF' },
+          { name: 'Completed', value: projs.filter(p => p.status === 'Completed').length, color: '#4DE3B1' }
+        ].filter(d => d.value > 0);
+        setProjectStatusData(statusCounts);
+
+        const revenueByMonth = invs
+          .filter(invoice => invoice.status === 'Paid')
+          .reduce((monthlyRevenue, invoice) => {
+            const invoiceDate = new Date(invoice.date);
+            if (Number.isNaN(invoiceDate.getTime())) return monthlyRevenue;
+
+            const month = invoiceDate.toLocaleDateString('en-US', { month: 'short', year: 'numeric' });
+            monthlyRevenue[month] = (monthlyRevenue[month] || 0) + parseAmount(invoice.amount);
+            return monthlyRevenue;
+          }, {});
+
+        setRevenueData(Object.entries(revenueByMonth).map(([name, revenue]) => ({ name, revenue })));
+
         setProjects(projs.slice(0, 5)); // Top 5
         setMeetings(mtgs.slice(0, 4)); // Top 4
       } catch (err) {
@@ -70,6 +95,72 @@ export default function Dashboard() {
         <StatCard title="Active Projects" value={stats.activeProjects} change="0" icon={Briefcase} trend="up" bgColor="bg-[#FEF08A]" iconColor="bg-white" />
         <StatCard title="Total Clients" value={stats.totalClients} change="0" icon={Users} trend="up" bgColor="bg-[#F43F5E]" iconColor="bg-white" />
         <StatCard title="Pending Invoices" value={`$${stats.pendingInvoices.toLocaleString()}`} change="0%" icon={TrendingUp} trend="down" bgColor="bg-[#E0F2FE]" iconColor="bg-white" />
+      </div>
+
+      {/* Analytics Charts */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 mt-8">
+        <div className="bg-white rounded-2xl border-4 border-black shadow-[8px_8px_0px_0px_rgba(0,0,0,1)] p-6">
+          <div className="flex items-center gap-3 mb-6">
+            <div className="p-3 bg-[#FEF08A] border-2 border-black rounded-xl">
+              <BarChart2 className="w-6 h-6 text-black" />
+            </div>
+            <h2 className="text-xl font-black text-black uppercase">Revenue Overview</h2>
+          </div>
+          <div className="h-[300px] w-full flex items-center justify-center">
+            {revenueData.length > 0 ? (
+              <ResponsiveContainer width="100%" height="100%">
+                <BarChart data={revenueData}>
+                  <XAxis dataKey="name" stroke="#000" tick={{ fill: '#000', fontWeight: 'bold' }} axisLine={{ stroke: '#000', strokeWidth: 2 }} tickLine={false} />
+                  <YAxis stroke="#000" tick={{ fill: '#000', fontWeight: 'bold' }} axisLine={{ stroke: '#000', strokeWidth: 2 }} tickLine={false} tickFormatter={(value) => `$${value}`} />
+                  <Tooltip 
+                    cursor={{ fill: 'transparent' }}
+                    contentStyle={{ backgroundColor: '#fff', border: '4px solid #000', borderRadius: '12px', boxShadow: '4px 4px 0px 0px rgba(0,0,0,1)', fontWeight: 'bold', color: '#000' }}
+                  />
+                  <Bar dataKey="revenue" fill="#4DE3B1" radius={[4, 4, 0, 0]} stroke="#000" strokeWidth={2} />
+                </BarChart>
+              </ResponsiveContainer>
+            ) : (
+              <p className="text-sm font-bold text-slate-500">No paid invoice data available.</p>
+            )}
+          </div>
+        </div>
+
+        <div className="bg-white rounded-2xl border-4 border-black shadow-[8px_8px_0px_0px_rgba(0,0,0,1)] p-6">
+          <div className="flex items-center gap-3 mb-6">
+            <div className="p-3 bg-[#E0F2FE] border-2 border-black rounded-xl">
+              <PieChartIcon className="w-6 h-6 text-black" />
+            </div>
+            <h2 className="text-xl font-black text-black uppercase">Project Statuses</h2>
+          </div>
+          <div className="h-[300px] w-full flex items-center justify-center">
+            {projectStatusData.length > 0 ? (
+              <ResponsiveContainer width="100%" height="100%">
+                <PieChart>
+                  <Pie
+                    data={projectStatusData}
+                    cx="50%"
+                    cy="50%"
+                    outerRadius={100}
+                    innerRadius={40}
+                    paddingAngle={5}
+                    dataKey="value"
+                    stroke="#000"
+                    strokeWidth={2}
+                  >
+                    {projectStatusData.map((entry, index) => (
+                      <Cell key={`cell-${index}`} fill={entry.color} />
+                    ))}
+                  </Pie>
+                  <Tooltip 
+                    contentStyle={{ backgroundColor: '#fff', border: '4px solid #000', borderRadius: '12px', boxShadow: '4px 4px 0px 0px rgba(0,0,0,1)', fontWeight: 'bold', color: '#000' }}
+                  />
+                </PieChart>
+              </ResponsiveContainer>
+            ) : (
+              <p className="text-sm font-bold text-slate-500">No project data available.</p>
+            )}
+          </div>
+        </div>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 mt-8">

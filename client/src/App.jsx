@@ -10,6 +10,7 @@ import Invoices from './pages/Invoices';
 import Login from './pages/Login';
 import Signup from './pages/Signup';
 import Settings from './pages/Settings';
+import ClientPortal from './pages/ClientPortal';
 import { AuthProvider } from './context/AuthContext';
 import { ProtectedRoute } from './components/ProtectedRoute';
 import { ErrorBoundary } from './components/ErrorBoundary';
@@ -42,6 +43,7 @@ function App() {
           <Route path="/" element={<LandingPage />} />
           <Route path="/login" element={<Login />} />
           <Route path="/signup" element={<Signup />} />
+          <Route path="/portal/:token" element={<ClientPortal />} />
           
           {/* Protected/Internal Routes */}
           <Route path="/*" element={

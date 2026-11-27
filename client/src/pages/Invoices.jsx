@@ -16,6 +16,7 @@ export default function Invoices() {
   const [formData, setFormData] = useState({ invoiceId: '', client: '', amount: '', date: '', status: 'Pending' });
 
   const [clients, setClients] = useState([]);
+  const [settings, setSettings] = useState(null);
 
   useEffect(() => {
     fetchAuth('/api/invoices')
@@ -26,6 +27,11 @@ export default function Invoices() {
     fetchAuth('/api/clients')
       .then(res => res.json())
       .then(data => setClients(data))
+      .catch(err => console.error(err));
+
+    fetchAuth('/api/settings')
+      .then(res => res.json())
+      .then(data => setSettings(data))
       .catch(err => console.error(err));
   }, []);
 
@@ -100,9 +106,19 @@ export default function Invoices() {
 
   const generatePDF = async (inv) => {
     const invoiceElement = document.createElement('div');
+    const agencyName = settings?.agencyName || 'My Agency';
+    const logoHtml = settings?.logoUrl 
+      ? `<img src="${settings.logoUrl}" style="max-height: 60px; margin-bottom: 20px;" />` 
+      : `<h2 style="font-size: 24px; font-weight: 900; margin-bottom: 20px;">${agencyName}</h2>`;
+      
     invoiceElement.innerHTML = `
       <div style="padding: 40px; font-family: sans-serif; width: 600px; background: white; color: black; border: 4px solid black;">
-        <h1 style="font-size: 32px; font-weight: 900; text-transform: uppercase; border-bottom: 4px solid black; padding-bottom: 20px; margin-bottom: 20px;">INVOICE</h1>
+        <div style="display: flex; justify-content: space-between; align-items: flex-start; border-bottom: 4px solid black; padding-bottom: 20px; margin-bottom: 20px;">
+          <div>
+            ${logoHtml}
+          </div>
+          <h1 style="font-size: 32px; font-weight: 900; text-transform: uppercase; margin: 0;">INVOICE</h1>
+        </div>
         <div style="display: flex; justify-content: space-between; margin-bottom: 40px;">
           <div>
             <p style="font-weight: 700; font-size: 14px; margin: 0;">INVOICE ID</p>
@@ -127,14 +143,18 @@ export default function Invoices() {
           <tbody>
             <tr>
               <td style="padding: 12px; font-weight: 700; border-bottom: 2px solid black;">Services Rendered</td>
-              <td style="text-align: right; padding: 12px; font-weight: 900; border-bottom: 2px solid black;">${inv.amount}</td>
+              <td style="text-align: right; padding: 12px; font-weight: 900; border-bottom: 2px solid black;">$${inv.amount.toString().replace(/^\$/, '')}</td>
             </tr>
           </tbody>
         </table>
-        <div style="display: flex; justify-content: flex-end;">
+        <div style="display: flex; justify-content: space-between; align-items: flex-end;">
+          <div style="flex: 1; margin-right: 40px;">
+            <p style="font-weight: 700; font-size: 14px; margin: 0 0 4px 0;">TERMS & CONDITIONS</p>
+            <p style="font-weight: 500; font-size: 12px; margin: 0; color: #4B5563;">${settings?.invoiceTerms || 'Payment due within 30 days.'}</p>
+          </div>
           <div style="width: 250px; background: #4DE3B1; padding: 20px; border: 4px solid black; border-radius: 12px; box-shadow: 6px 6px 0px 0px rgba(0,0,0,1);">
             <p style="font-weight: 700; font-size: 14px; margin: 0; margin-bottom: 8px;">TOTAL DUE</p>
-            <p style="font-weight: 900; font-size: 32px; margin: 0;">${inv.amount}</p>
+            <p style="font-weight: 900; font-size: 32px; margin: 0;">$${inv.amount.toString().replace(/^\$/, '')}</p>
           </div>
         </div>
       </div>

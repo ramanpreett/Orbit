@@ -3,6 +3,8 @@ import { User, Lock, Save, LogOut } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { useNavigate } from 'react-router-dom';
 import toast from 'react-hot-toast';
+import { fetchAuth } from '../utils/fetchAuth';
+import { Building2 } from 'lucide-react';
 
 export default function Settings() {
   const { user, logout } = useAuth();
@@ -17,6 +19,29 @@ export default function Settings() {
     new: '',
     confirm: ''
   });
+
+  const [agencySettings, setAgencySettings] = useState({
+    agencyName: 'My Agency',
+    logoUrl: '',
+    hourlyRate: 50,
+    invoiceTerms: 'Payment due within 30 days.'
+  });
+
+  React.useEffect(() => {
+    fetchAuth('/api/settings')
+      .then(res => res.json())
+      .then(data => {
+        if (data && data._id) {
+          setAgencySettings({
+            agencyName: data.agencyName || '',
+            logoUrl: data.logoUrl || '',
+            hourlyRate: data.hourlyRate || 50,
+            invoiceTerms: data.invoiceTerms || ''
+          });
+        }
+      })
+      .catch(err => console.error(err));
+  }, []);
 
   const handleProfileSave = (e) => {
     e.preventDefault();
@@ -33,6 +58,22 @@ export default function Settings() {
     // Simulate API call
     toast.success('Password changed successfully!');
     setPassword({ current: '', new: '', confirm: '' });
+  };
+
+  const handleAgencySave = async (e) => {
+    e.preventDefault();
+    try {
+      const res = await fetchAuth('/api/settings', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(agencySettings)
+      });
+      if (!res.ok) throw new Error('Failed to update settings');
+      toast.success('Agency settings saved!');
+    } catch (err) {
+      console.error(err);
+      toast.error('Failed to save settings');
+    }
   };
 
   const handleLogout = () => {
@@ -139,6 +180,65 @@ export default function Settings() {
             </button>
           </form>
         </div>
+      </div>
+
+      {/* Agency & Billing Settings */}
+      <div className="bg-white rounded-2xl border-4 border-black shadow-[8px_8px_0px_0px_rgba(0,0,0,1)] p-8">
+        <div className="flex items-center gap-3 mb-6">
+          <div className="p-3 bg-[#E9D5FF] border-2 border-black rounded-xl text-black">
+            <Building2 className="w-6 h-6" />
+          </div>
+          <h2 className="text-2xl font-black text-black uppercase">Agency & Billing</h2>
+        </div>
+        
+        <form onSubmit={handleAgencySave} className="space-y-6">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div>
+              <label className="block text-sm font-bold text-black mb-2">Agency Name</label>
+              <input 
+                type="text" 
+                value={agencySettings.agencyName}
+                onChange={(e) => setAgencySettings({...agencySettings, agencyName: e.target.value})}
+                className="w-full bg-white border-2 border-black rounded-xl py-3 px-4 text-black font-bold focus:outline-none focus:ring-0 shadow-[4px_4px_0px_0px_rgba(0,0,0,1)]"
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-bold text-black mb-2">Logo URL</label>
+              <input 
+                type="text" 
+                value={agencySettings.logoUrl}
+                onChange={(e) => setAgencySettings({...agencySettings, logoUrl: e.target.value})}
+                className="w-full bg-white border-2 border-black rounded-xl py-3 px-4 text-black font-bold focus:outline-none focus:ring-0 shadow-[4px_4px_0px_0px_rgba(0,0,0,1)]"
+                placeholder="https://example.com/logo.png"
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-bold text-black mb-2">Default Hourly Rate ($)</label>
+              <input 
+                type="number" 
+                value={agencySettings.hourlyRate}
+                onChange={(e) => setAgencySettings({...agencySettings, hourlyRate: Number(e.target.value)})}
+                className="w-full bg-white border-2 border-black rounded-xl py-3 px-4 text-black font-bold focus:outline-none focus:ring-0 shadow-[4px_4px_0px_0px_rgba(0,0,0,1)]"
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-bold text-black mb-2">Invoice Terms & Conditions</label>
+              <input 
+                type="text" 
+                value={agencySettings.invoiceTerms}
+                onChange={(e) => setAgencySettings({...agencySettings, invoiceTerms: e.target.value})}
+                className="w-full bg-white border-2 border-black rounded-xl py-3 px-4 text-black font-bold focus:outline-none focus:ring-0 shadow-[4px_4px_0px_0px_rgba(0,0,0,1)]"
+                placeholder="Payment due within 30 days."
+              />
+            </div>
+          </div>
+          <button 
+            type="submit"
+            className="w-full flex items-center justify-center gap-2 bg-[#F59E0B] text-black px-6 py-3 rounded-xl font-bold border-2 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] hover:shadow-none hover:translate-y-1 transition-all uppercase tracking-wide mt-8"
+          >
+            <Save className="w-5 h-5" /> Save Agency Settings
+          </button>
+        </form>
       </div>
 
       {/* Account Actions */}

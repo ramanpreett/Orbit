@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Calendar, Clock, X, Trash2, Edit2, MoreVertical } from 'lucide-react';
+import { Calendar, Clock, X, Trash2, Edit2, MoreVertical, FileText } from 'lucide-react';
 import { fetchAuth } from '../utils/fetchAuth';
 import toast from 'react-hot-toast';
 import DatePicker from '../components/DatePicker';
@@ -22,6 +22,12 @@ export default function Projects() {
   const [formData, setFormData] = useState({ name: '', client: '', status: 'Planning', dueDate: '', progress: 0 });
 
   const [clients, setClients] = useState([]);
+  
+  // Time Logging State
+  const [isTimeModalOpen, setIsTimeModalOpen] = useState(false);
+  const [activeProject, setActiveProject] = useState(null);
+  const [timeLogData, setTimeLogData] = useState({ hours: '', description: '' });
+  const [settings, setSettings] = useState(null);
 
   useEffect(() => {
     fetchAuth('/api/projects')
@@ -32,6 +38,11 @@ export default function Projects() {
     fetchAuth('/api/clients')
       .then(res => res.json())
       .then(data => setClients(data))
+      .catch(err => console.error(err));
+      
+    fetchAuth('/api/settings')
+      .then(res => res.json())
+      .then(data => setSettings(data))
       .catch(err => console.error(err));
   }, []);
 
@@ -182,6 +193,86 @@ export default function Projects() {
     }
   };
 
+  const openTimeModal = (project, e) => {
+    e.stopPropagation();
+    setActiveProject(project);
+    setTimeLogData({ hours: '', description: '' });
+    setIsTimeModalOpen(true);
+  };
+
+  const handleAddTimeLog = async (e) => {
+    e.preventDefault();
+    if (!timeLogData.hours || !timeLogData.description) return;
+    
+    try {
+      const res = await fetchAuth(`/api/projects/${activeProject._id || activeProject.id}/time`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ hours: Number(timeLogData.hours), description: timeLogData.description })
+      });
+      if (!res.ok) throw new Error('Failed to log time');
+      const updatedProject = await res.json();
+      setProjects(projects.map(p => (p._id || p.id) === (updatedProject._id || updatedProject.id) ? updatedProject : p));
+      setActiveProject(updatedProject);
+      setTimeLogData({ hours: '', description: '' });
+      toast.success('Time logged successfully!');
+    } catch (err) {
+      console.error(err);
+      toast.error('Failed to log time');
+    }
+  };
+
+  const handleDeleteTimeLog = async (logId) => {
+    try {
+      const res = await fetchAuth(`/api/projects/${activeProject._id || activeProject.id}/time/${logId}`, {
+        method: 'DELETE'
+      });
+      if (!res.ok) throw new Error('Failed to delete time log');
+      const updatedProject = await res.json();
+      setProjects(projects.map(p => (p._id || p.id) === (updatedProject._id || updatedProject.id) ? updatedProject : p));
+      setActiveProject(updatedProject);
+      toast.success('Time log removed!');
+    } catch (err) {
+      console.error(err);
+      toast.error('Failed to remove time log');
+    }
+  };
+
+  const handleGenerateInvoice = async () => {
+    if (!activeProject || !activeProject.timeLogs || activeProject.timeLogs.length === 0) {
+      toast.error('No logged hours to invoice.');
+      return;
+    }
+    
+    const totalHours = activeProject.timeLogs.reduce((acc, log) => acc + log.hours, 0);
+    const hourlyRate = settings?.hourlyRate || 50;
+    const amount = `$${(totalHours * hourlyRate).toFixed(2)}`;
+    const invoiceId = `INV-${Math.floor(100000 + Math.random() * 900000)}`;
+    const date = new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+    
+    const invoiceData = {
+      invoiceId,
+      client: activeProject.client?._id || activeProject.client,
+      amount,
+      date,
+      status: 'Pending'
+    };
+    
+    try {
+      const res = await fetchAuth('/api/invoices', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(invoiceData)
+      });
+      if (!res.ok) throw new Error('Failed to create invoice');
+      toast.success('Invoice generated successfully! Check your Invoices tab.');
+      setIsTimeModalOpen(false);
+    } catch (err) {
+      console.error(err);
+      toast.error('Failed to generate invoice');
+    }
+  };
+
   return (
     <div className="flex flex-col h-[calc(100vh-120px)] space-y-6 relative z-10">
       {/* Header */}
@@ -244,8 +335,16 @@ export default function Projects() {
                       </span>
                       <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
                         <button 
+                          onClick={(e) => openTimeModal(project, e)}
+                          className="p-1 hover:bg-[#E9D5FF] hover:text-black border-2 border-transparent hover:border-black rounded-md transition-colors"
+                          title="Log Time"
+                        >
+                          <Clock className="w-4 h-4" />
+                        </button>
+                        <button 
                           onClick={(e) => handleDeleteProject(project._id || project.id, e)}
                           className="p-1 hover:bg-[#F43F5E] hover:text-white border-2 border-transparent hover:border-black rounded-md transition-colors"
+                          title="Delete Project"
                         >
                           <Trash2 className="w-4 h-4" />
                         </button>
@@ -380,6 +479,97 @@ export default function Projects() {
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* Log Time Modal */}
+      {isTimeModalOpen && activeProject && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4 backdrop-blur-sm">
+          <div className="bg-white rounded-2xl border-4 border-black shadow-[8px_8px_0px_0px_rgba(0,0,0,1)] w-full max-w-lg animate-in fade-in zoom-in duration-200">
+            <div className="bg-[#E9D5FF] rounded-t-[12px] border-b-4 border-black p-4 flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <Clock className="w-6 h-6 text-black" />
+                <h2 className="text-xl font-black text-black uppercase tracking-tight">Time Logs - {activeProject.name}</h2>
+              </div>
+              <button 
+                onClick={() => setIsTimeModalOpen(false)}
+                className="p-1.5 border-2 border-black rounded-lg bg-white hover:bg-black hover:text-white transition-colors shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] hover:shadow-none hover:translate-y-0.5"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+            
+            <div className="p-6 bg-[#FDFDFD]">
+              {/* Existing Logs */}
+              <div className="mb-6 max-h-48 overflow-y-auto pr-2">
+                {(!activeProject.timeLogs || activeProject.timeLogs.length === 0) ? (
+                  <p className="text-sm font-bold text-slate-500 text-center py-4 border-2 border-dashed border-slate-300 rounded-xl">No time logged yet.</p>
+                ) : (
+                  <div className="space-y-3">
+                    {activeProject.timeLogs.map(log => (
+                      <div key={log._id} className="flex items-center justify-between p-3 border-2 border-black rounded-xl bg-white shadow-[2px_2px_0px_0px_rgba(0,0,0,1)]">
+                        <div>
+                          <p className="font-bold text-black">{log.description}</p>
+                          <p className="text-xs font-bold text-slate-500">{new Date(log.date).toLocaleDateString()}</p>
+                        </div>
+                        <div className="flex items-center gap-3">
+                          <span className="font-black text-black bg-[#E0F2FE] px-2 py-1 rounded-md border-2 border-black">{log.hours}h</span>
+                          <button onClick={() => handleDeleteTimeLog(log._id)} className="text-slate-400 hover:text-[#F43F5E] transition-colors"><Trash2 className="w-4 h-4" /></button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              <div className="flex items-center justify-between mb-4 border-t-2 border-black pt-4">
+                <span className="font-black text-black uppercase">Total Time Logged:</span>
+                <span className="font-black text-2xl bg-[#FEF08A] px-3 py-1 rounded-lg border-2 border-black shadow-[2px_2px_0px_0px_rgba(0,0,0,1)]">
+                  {activeProject.timeLogs?.reduce((acc, log) => acc + log.hours, 0) || 0}h
+                </span>
+              </div>
+
+              {/* Add New Log Form */}
+              <form onSubmit={handleAddTimeLog} className="space-y-4 border-4 border-black p-4 rounded-xl bg-slate-50">
+                <div className="grid grid-cols-4 gap-3">
+                  <div className="col-span-1">
+                    <label className="block text-xs font-black text-black uppercase mb-1">Hours</label>
+                    <input 
+                      type="number" step="0.5" min="0" required
+                      value={timeLogData.hours}
+                      onChange={e => setTimeLogData({...timeLogData, hours: e.target.value})}
+                      className="w-full bg-white border-2 border-black rounded-lg py-2 px-2 text-black font-bold focus:outline-none"
+                      placeholder="e.g. 2.5"
+                    />
+                  </div>
+                  <div className="col-span-3">
+                    <label className="block text-xs font-black text-black uppercase mb-1">Description</label>
+                    <div className="flex gap-2">
+                      <input 
+                        type="text" required
+                        value={timeLogData.description}
+                        onChange={e => setTimeLogData({...timeLogData, description: e.target.value})}
+                        className="w-full bg-white border-2 border-black rounded-lg py-2 px-3 text-black font-bold focus:outline-none"
+                        placeholder="What did you work on?"
+                      />
+                      <button type="submit" className="bg-[#4DE3B1] text-black px-4 font-black border-2 border-black rounded-lg hover:bg-[#34D399]">Add</button>
+                    </div>
+                  </div>
+                </div>
+              </form>
+
+              {activeProject.status === 'Completed' && (
+                <div className="mt-6 border-t-4 border-black pt-6">
+                  <button 
+                    onClick={handleGenerateInvoice}
+                    className="w-full flex items-center justify-center gap-2 bg-[#F59E0B] text-black px-6 py-3 rounded-xl font-black border-2 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] hover:shadow-none hover:translate-y-1 transition-all uppercase tracking-wide"
+                  >
+                    <FileText className="w-5 h-5" /> Generate Invoice from Hours
+                  </button>
+                </div>
+              )}
+            </div>
           </div>
         </div>
       )}

@@ -10,7 +10,8 @@ const clientSchema = new mongoose.Schema({
   email: { type: String, required: true },
   company: { type: String },
   phone: { type: String },
-  status: { type: String, enum: ['Active', 'Inactive', 'Lead'], default: 'Active' }
+  status: { type: String, enum: ['Active', 'Inactive', 'Lead'], default: 'Active' },
+  magicLinkToken: { type: String, unique: true, sparse: true }
 }, { timestamps: true });
 
 module.exports = mongoose.model('Client', clientSchema);

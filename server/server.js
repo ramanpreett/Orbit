@@ -30,6 +30,8 @@ app.use('/api/clients', require('./routes/clients'));
 app.use('/api/projects', require('./routes/projects'));
 app.use('/api/meetings', require('./routes/meetings'));
 app.use('/api/invoices', require('./routes/invoices'));
+app.use('/api/settings', require('./routes/settings'));
+app.use('/api/portal', require('./routes/portal'));
 
 // Basic Route for testing
 app.get('/', (req, res) => {
